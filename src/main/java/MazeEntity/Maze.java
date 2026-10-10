@@ -5,7 +5,12 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-
+/*
+* This class represents our Maze which we load from directory.
+* Then we make logical version of our 'physical' (image) version.
+* We make two dimension array of MazeTitle.
+* And also we make copy of our original maze to ensure we got exactly the same one.
+*/
 public class Maze {
     private BufferedImage bitmap;
     private MazeTitle [][] logicalMaze;

@@ -1,132 +1,138 @@
-    package MazeEntity;
+package MazeEntity;
 
-    import enums.Orientation;
-    import lombok.AllArgsConstructor;
-    import lombok.Getter;
-    import lombok.NoArgsConstructor;
-    import lombok.Setter;
+import enums.Orientation;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-    @Setter
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public class MazeState {
-        static final int MOVE_FORWARD_ONE_FIELD_COST = 5;
-        static final int TURN_LEFT_90_DEGREES_COST = 2;
-        static final int TURN_RIGHT_90_DEGREES_COST = 2;
-        static final int TURN_180_DEGREES_COST = 3;
+/*
+* This class represents each state during discovering the best way to find our destination
+* It includes moving forward, turning left or right or turning 180 degrees
+* Move forward method is split into two separated smaller ones each for one axe of the 2-dimensional array
+ */
 
-        private int totalCost;
-        private int xPosition;
-        private int yPosition;
-        private Orientation orientation = Orientation.SOUTH;
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+public class MazeState {
+    static final int MOVE_FORWARD_ONE_FIELD_COST = 5;
+    static final int TURN_LEFT_90_DEGREES_COST = 2;
+    static final int TURN_RIGHT_90_DEGREES_COST = 2;
+    static final int TURN_180_DEGREES_COST = 3;
 
-
-        public MazeState(int yPosition, Orientation orientation, int xPosition) {
-            this.yPosition = yPosition;
-            this.orientation = orientation;
-            this.xPosition = xPosition;
-        }
-
+    private int totalCost;
+    private int xPosition;
+    private int yPosition;
+    private Orientation orientation = Orientation.SOUTH;
 
 
-        public MazeState turnLeft90Degrees(){
-            MazeState newState = new MazeState();
-            int nextValue = orientation.ordinal() - 1;
-            if(nextValue < 0)
-                nextValue = 3;
-            newState.setYPosition(yPosition);
-            newState.setXPosition(xPosition);
-            newState.setOrientation(Orientation.values()[nextValue]);
-            newState.setTotalCost(totalCost + TURN_LEFT_90_DEGREES_COST);
-            return newState;
-        }
-
-        public MazeState turnRight90Degrees(){
-            MazeState newState = new MazeState();
-            int nextValue = orientation.ordinal() + 1;
-            if(nextValue >3)
-                nextValue = 0;
-            newState.setOrientation(Orientation.values()[nextValue]);
-            newState.setTotalCost(totalCost + TURN_RIGHT_90_DEGREES_COST);
-            newState.setXPosition(xPosition);
-            newState.setYPosition(yPosition);
-
-            return newState;
-        }
+    public MazeState(int yPosition, Orientation orientation, int xPosition) {
+        this.yPosition = yPosition;
+        this.orientation = orientation;
+        this.xPosition = xPosition;
+    }
 
 
-        public MazeState turnAround180Degrees() {
-            int nextValue = (orientation.ordinal() + 2) % 4;
 
-            MazeState newState = new MazeState(
-                    totalCost + TURN_180_DEGREES_COST,
-                    xPosition,
-                    yPosition,
-                    Orientation.values()[nextValue]
-            );
+    public MazeState turnLeft90Degrees(){
+        MazeState newState = new MazeState();
+        int nextValue = orientation.ordinal() - 1;
+        if(nextValue < 0)
+            nextValue = 3;
+        newState.setYPosition(yPosition);
+        newState.setXPosition(xPosition);
+        newState.setOrientation(Orientation.values()[nextValue]);
+        newState.setTotalCost(totalCost + TURN_LEFT_90_DEGREES_COST);
+        return newState;
+    }
 
-            return newState;
-        }
+    public MazeState turnRight90Degrees(){
+        MazeState newState = new MazeState();
+        int nextValue = orientation.ordinal() + 1;
+        if(nextValue >3)
+            nextValue = 0;
+        newState.setOrientation(Orientation.values()[nextValue]);
+        newState.setTotalCost(totalCost + TURN_RIGHT_90_DEGREES_COST);
+        newState.setXPosition(xPosition);
+        newState.setYPosition(yPosition);
 
-        public MazeState moveForward(){
-            int x = xPosition;
-            int y = yPosition;
-            switch (orientation){
-                case Orientation.EAST :
-                        x = moveOnXAxiom();
-                        break;
-                case Orientation.WEST :
-                        x = moveOnXAxiom();
-                        break;
-                case Orientation.NORTH :
-                    y =  moveOnYAxiom();
+        return newState;
+    }
+
+
+    public MazeState turnAround180Degrees() {
+        int nextValue = (orientation.ordinal() + 2) % 4;
+
+        MazeState newState = new MazeState(
+                totalCost + TURN_180_DEGREES_COST,
+                xPosition,
+                yPosition,
+                Orientation.values()[nextValue]
+        );
+
+        return newState;
+    }
+
+    public MazeState moveForward(){
+        int x = xPosition;
+        int y = yPosition;
+        switch (orientation){
+            case Orientation.EAST :
+                    x = moveOnXAxiom();
                     break;
-                case Orientation.SOUTH :
-                      y = moveOnYAxiom();
-                      break;
-            }
-
-            return new MazeState(
-                    totalCost + MOVE_FORWARD_ONE_FIELD_COST,
-                    x,
-                    y,
-                    orientation
-            );
+            case Orientation.WEST :
+                    x = moveOnXAxiom();
+                    break;
+            case Orientation.NORTH :
+                y =  moveOnYAxiom();
+                break;
+            case Orientation.SOUTH :
+                  y = moveOnYAxiom();
+                  break;
         }
 
-        public int moveOnYAxiom(){
-            if(orientation == Orientation.NORTH){
-                if(yPosition != 0){
-                    return yPosition - 1;
-                }
-                else{
-                    throw new RuntimeException("Cant move outside of the maze!");
-                }
+        return new MazeState(
+                totalCost + MOVE_FORWARD_ONE_FIELD_COST,
+                x,
+                y,
+                orientation
+        );
+    }
+
+    public int moveOnYAxiom(){
+        if(orientation == Orientation.NORTH){
+            if(yPosition != 0){
+                return yPosition - 1;
+            }
+            else{
+                throw new RuntimeException("Cant move outside of the maze!");
+            }
+        }else{
+            if(yPosition != 33){
+                return yPosition + 1;
             }else{
-                if(yPosition != 33){
-                    return yPosition + 1;
-                }else{
-                    throw new RuntimeException("Cant move outside of the maze!");
-                }
+                throw new RuntimeException("Cant move outside of the maze!");
             }
         }
-        public int moveOnXAxiom(){
-            if(orientation == Orientation.WEST){
-                if(xPosition != 0){
-                    return xPosition - 1;
-                }
-                else{
-                    throw new RuntimeException("Cant move outside of the maze!");
-                }
-            }else {
-                if(xPosition != 33){
-                    return xPosition + 1;
-                }else{
-                    throw new RuntimeException("Cant move outside of the maze!");
-                }
+    }
+    public int moveOnXAxiom(){
+        if(orientation == Orientation.WEST){
+            if(xPosition != 0){
+                return xPosition - 1;
             }
-
+            else{
+                throw new RuntimeException("Cant move outside of the maze!");
+            }
+        }else {
+            if(xPosition != 33){
+                return xPosition + 1;
+            }else{
+                throw new RuntimeException("Cant move outside of the maze!");
+            }
         }
 
     }
+
+}

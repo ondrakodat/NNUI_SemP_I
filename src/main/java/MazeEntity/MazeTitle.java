@@ -5,6 +5,11 @@ import lombok.Setter;
 
 import java.awt.*;
 
+/*
+* Class representing each tile in 2-dimensional array
+* It can be solid blok which we cant walk thru or empty block where we can continue discovering.
+*/
+
 @Getter
 @Setter
 public class MazeTitle{
