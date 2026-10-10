@@ -1,6 +1,4 @@
-
-import lombok.Getter;
-import lombok.Setter;
+package MazeEntity;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -36,13 +34,11 @@ public class Maze {
         for (int x = 0; x < bitmap.getWidth(); x++) {
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 MazeTitle title = new MazeTitle();
-                title.setUpMazeTitle(x,y);
+                title.setUpMazeTitle(x, y);
                 int color = bitmap.getRGB(x, y);
-                System.out.println(color);
-                if(color == -16777216){
+                if (color == -16777216) {
                     title.setUpMazeAsSolidBlock();
-                }
-                else if(color == -1){
+                } else if (color == -1) {
                     title.setUpMazeAsNotSolidBlock();
                 }
                 logicalMaze[x][y] = title;
@@ -51,9 +47,7 @@ public class Maze {
 
     }
 
-    private void printMazeSize(){
-        System.out.println("Width : " + bitmap.getWidth());
-        System.out.println("Height : " + bitmap.getHeight());
+    private void printMazeSize() {
     }
 
     public BufferedImage createPhysicalMazeFromLogicalState(){
@@ -62,7 +56,7 @@ public class Maze {
         for (int x = 0; x < bitmap.getWidth(); x++) {
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 MazeTitle title = logicalMaze[x][y];
-                if(title.isSolidBlock)
+                if(title.isSolidBlock())
                     bmtMaze.setRGB(x,y, Color.BLACK.getRGB());
                 else{
                     bmtMaze.setRGB(x,y,Color.WHITE.getRGB());
@@ -74,27 +68,8 @@ public class Maze {
     }
 
 
-    @Getter
-    @Setter
-    private class MazeTitle{
-        private int xCoordinates;
-        private int yCoordinates;
-        private boolean isSolidBlock;
-        private Color color;
 
-        public void setUpMazeTitle(int x, int y){
-            this.setXCoordinates(x);
-            this.setYCoordinates(y);
-        }
-        public void setUpMazeAsSolidBlock(){
-            this.setColor(Color.BLACK);
-            this.setSolidBlock(true);
-        }
-        public void setUpMazeAsNotSolidBlock(){
-            this.setColor(Color.WHITE);
-            this.setSolidBlock(false);
-        }
-    }
+
 
 
 }
