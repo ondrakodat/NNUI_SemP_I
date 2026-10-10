@@ -1,8 +1,8 @@
 package enums;
 
 public enum Orientation {
-    SOUTH,
-    EAST,
     NORTH,
+    EAST,
+    SOUTH,
     WEST
 }
