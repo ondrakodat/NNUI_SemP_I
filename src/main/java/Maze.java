@@ -32,7 +32,7 @@ public class Maze {
     }
 
     public void setupLogicalMaze(){
-        logicalMaze = new MazeTitle[bitmap.getHeight()][bitmap.getWidth()];
+        logicalMaze = new MazeTitle[bitmap.getWidth()][bitmap.getHeight()];
         for (int x = 0; x < bitmap.getWidth(); x++) {
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 MazeTitle title = new MazeTitle();
@@ -40,7 +40,7 @@ public class Maze {
                 int color = bitmap.getRGB(x, y);
                 System.out.println(color);
                 if(color == -16777216){
-                    title.setUpMazeAsNotSolidBlock();
+                    title.setUpMazeAsSolidBlock();
                 }
                 else if(color == -1){
                     title.setUpMazeAsNotSolidBlock();
@@ -51,11 +51,26 @@ public class Maze {
 
     }
 
-
-
     private void printMazeSize(){
         System.out.println("Width : " + bitmap.getWidth());
         System.out.println("Height : " + bitmap.getHeight());
+    }
+
+    public BufferedImage createPhysicalMazeFromLogicalState(){
+        BufferedImage bmtMaze = new BufferedImage(bitmap.getWidth(), bitmap.getHeight(), BufferedImage.TYPE_INT_RGB);
+
+        for (int x = 0; x < bitmap.getWidth(); x++) {
+            for (int y = 0; y < bitmap.getHeight(); y++) {
+                MazeTitle title = logicalMaze[x][y];
+                if(title.isSolidBlock)
+                    bmtMaze.setRGB(x,y, Color.BLACK.getRGB());
+                else{
+                    bmtMaze.setRGB(x,y,Color.WHITE.getRGB());
+                }
+            }
+        }
+        return bmtMaze;
+    
     }
 
 
