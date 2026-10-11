@@ -25,6 +25,7 @@ public class MazeState {
     private int totalCost;
     private int xPosition;
     private int yPosition;
+    private MazeState previousState;
     private Orientation orientation = Orientation.SOUTH;
 
 
