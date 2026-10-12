@@ -54,21 +54,17 @@ public class AlgorithmA {
 
     public void vypis(){
         System.out.println(maze.getLogicalMaze().length);
-
     }
 
     private MazeState[] GiveStartAndDestinationPosition(int xStart, int yStart, int xDestination, int yDestination){
-
-
         MazeState[] states = new MazeState[2];
         MazeState startPosition = new MazeState(startCostValue, xStart, yStart,null , Orientation.NORTH);
         MazeState destiantionPosition = new MazeState(totalValue, xDestination, yDestination,null , Orientation.NORTH);
-        //zjistit zda jsou pole ktere jsme zadali pruchozi jinak vyhodit exception
-
-        if(maze.isMazeTitleSolidBlock(xStart, yStart))
-            throw new RuntimeException("Cant start on solid block");
-        if(maze.isMazeTitleSolidBlock(xDestination,yDestination))
-            throw new RuntimeException("Cant choose solid block as destination");
+        //Check if blocks aren't solid blocks or throw run time exception
+        if(!maze.areValidEnterStates(xStart, yStart))
+            throw new RuntimeException("Cant choose" + xStart + yStart + " as destination");
+        if(!maze.areValidEnterStates(xDestination,yDestination))
+            throw new RuntimeException("Cant choose" + xDestination + yDestination + " as destination");
 
         states[0] = startPosition;
         states[1] = destiantionPosition;

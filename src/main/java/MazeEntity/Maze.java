@@ -78,12 +78,30 @@ public class Maze {
         return bmtMaze;
     }
 
-    public boolean isMazeTitleSolidBlock(int x, int y){
+    public boolean areValidEnterStates(int x, int y){
         MazeTitle titleForCheck = logicalMaze[x][y];
-        if(titleForCheck.isSolidBlock()){
-            return true;
-        }else
+        int xCoordinates = titleForCheck.getXCoordinates();
+        int yCoordinates = titleForCheck.getYCoordinates();
+        int bordersOfX = logicalMaze.length;
+        int bordersOfY = logicalMaze[x].length;
+        if(xCoordinates >= bordersOfX || xCoordinates < 0) {
+            System.out.println("Chosen position is not inside of maze with X position");
             return false;
+        }
+        else if(yCoordinates >= bordersOfY || yCoordinates < 0){
+            System.out.println("Chosen position is not inside of maze with Y position");
+            return false;
+        }
+        else if(titleForCheck.isSolidBlock()){
+            System.out.println("Chosen position is solid block");
+            return false;
+        }else
+            return true;
+    }
+
+    private boolean isInBordersOfMaze(int x, int y){
+
+        return false;
     }
 
 
