@@ -78,7 +78,7 @@ public class Maze {
         return bmtMaze;
     }
 
-    public boolean areValidEnterStates(int x, int y){
+    public boolean areValidEnterStates(int x, int y) throws ArrayIndexOutOfBoundsException{
         MazeTitle titleForCheck = logicalMaze[x][y];
         int xCoordinates = titleForCheck.getXCoordinates();
         int yCoordinates = titleForCheck.getYCoordinates();
@@ -98,6 +98,7 @@ public class Maze {
         }else
             return true;
     }
+
 
     private boolean isInBordersOfMaze(int x, int y){
 

@@ -34,5 +34,6 @@ public class Main {
 //        System.out.println(around.getOrientation());
 //        MazeState last = around.turnRight90Degrees();
 //        System.out.println(last.getOrientation());
+        alg.Start();
     }
 }

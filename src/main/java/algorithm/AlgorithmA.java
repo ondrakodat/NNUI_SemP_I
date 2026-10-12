@@ -36,7 +36,7 @@ public class AlgorithmA {
 
     public void Start(){
         prepareEnvironment();
-        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(0,0,5,5);
+        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(4,3,9,5);
         startState = userSelectedStates[0];
         destinationState = userSelectedStates[1];
         actualState = startState;
@@ -51,12 +51,24 @@ public class AlgorithmA {
                 break;
             }
             closedList.add(actualState);
+
             MazeState leftState = actualState.turnLeft90Degrees();
-            openList.add(leftState);
+            if(!openList.contains(leftState) && !closedList.contains(leftState))
+                openList.add(leftState);
+
+            MazeState rightState = actualState.turnRight90Degrees();
+            if(!openList.contains(rightState) && !closedList.contains(rightState))
+                openList.add(rightState);
+
+            MazeState aroundState = actualState.turnAround180Degrees();
+            if(!openList.contains(aroundState) && !closedList.contains(aroundState) )
+                openList.add(aroundState);
+
+            MazeState forwardState = actualState.moveForward();
+            if(maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition()) && !openList.contains(forwardState) && !closedList.contains(forwardState)){
+                openList.add(forwardState);
+            }
         }
-
-
-
     }
 
     public void vypis(){
