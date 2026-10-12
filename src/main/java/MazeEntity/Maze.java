@@ -76,7 +76,14 @@ public class Maze {
             }
         }
         return bmtMaze;
-    
+    }
+
+    public boolean isMazeTitleSolidBlock(int x, int y){
+        MazeTitle titleForCheck = logicalMaze[x][y];
+        if(titleForCheck.isSolidBlock()){
+            return true;
+        }else
+            return false;
     }
 
 

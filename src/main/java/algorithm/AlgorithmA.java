@@ -17,35 +17,76 @@ import MazeEntity.Maze;
 import MazeEntity.MazeState;
 import enums.Orientation;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.PriorityQueue;
+
 public class AlgorithmA {
     private int startCostValue = 0;
     private int totalValue;
     private Maze maze;
+    private MazeState startState;
+    private MazeState actualState;
+    private MazeState destinationState;
+
+
 
     public AlgorithmA(Maze maze) {
         this.maze = maze;
     }
 
+    public void Start(){
+        prepareEnvironment();
+
+        PriorityQueue<MazeState> openList = new PriorityQueue<>();
+        List<MazeState> closedList = new ArrayList<>();
+
+        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(0,0,5,5);
+        startState = userSelectedStates[0];
+        destinationState = userSelectedStates[1];
+        actualState = startState;
+
+
+        openList.add(actualState);
+
+
+    }
 
     public void vypis(){
         System.out.println(maze.getLogicalMaze().length);
 
     }
 
-    private void GiveStartAndDestinationPosition(int xStart, int yStart, int xDestination, int YDestination){
+    private MazeState[] GiveStartAndDestinationPosition(int xStart, int yStart, int xDestination, int yDestination){
 
 
+        MazeState[] states = new MazeState[2];
         MazeState startPosition = new MazeState(startCostValue, xStart, yStart,null , Orientation.NORTH);
-        MazeState destiantionPosition = new MazeState(totalValue, xDestination, YDestination,null , Orientation.NORTH);
+        MazeState destiantionPosition = new MazeState(totalValue, xDestination, yDestination,null , Orientation.NORTH);
+        //zjistit zda jsou pole ktere jsme zadali pruchozi jinak vyhodit exception
+
+        if(maze.isMazeTitleSolidBlock(xStart, yStart))
+            throw new RuntimeException("Cant start on solid block");
+        if(maze.isMazeTitleSolidBlock(xDestination,yDestination))
+            throw new RuntimeException("Cant choose solid block as destination");
+
+        states[0] = startPosition;
+        states[1] = destiantionPosition;
+
+        return states;
     }
 
 
-    private boolean isDestinationReached(MazeState acutalPosition, MazeState finalDestination){
-        if(acutalPosition.getXPosition() == finalDestination.getXPosition()
+    private boolean isDestinationReached(){
+        if(actualState.getXPosition() == destinationState.getXPosition()
                 &&
-                acutalPosition.getYPosition() == finalDestination.getYPosition())
+                actualState.getYPosition() == destinationState.getYPosition())
             return true;
         else
             return false;
+    }
+
+    private void prepareEnvironment(){
+        maze.GetMazeFromFile();
     }
 }

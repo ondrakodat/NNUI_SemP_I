@@ -9,7 +9,8 @@ import java.io.IOException;
 public class Main {
     public static void main() {
         Maze maze = new Maze();
-//        maze.GetMazeFromFile();
+        maze.GetMazeFromFile();
+        maze.setupLogicalMaze();
 //        BufferedImage imageOfMaze = maze.createPhysicalMazeFromLogicalState();
 //
 //        try {
