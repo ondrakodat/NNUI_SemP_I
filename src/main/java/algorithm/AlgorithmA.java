@@ -85,4 +85,15 @@ public class AlgorithmA {
     private void prepareEnvironment(){
         maze.GetMazeFromFile();
     }
+
+    public int calcuteHeuristic(){
+        int xDistance = Math.abs(actualState.getXPosition()- destinationState.getXPosition());
+        int yDistance = Math.abs(actualState.getYPosition() - destinationState.getYPosition());
+        return (xDistance + yDistance) * 5;
+    }
+
+    public int calculateEstimatedTotalCost(){
+        return actualState.getTotalCost() + calcuteHeuristic();
+    }
+
 }

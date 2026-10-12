@@ -138,10 +138,6 @@ public class MazeState {
         }
     }
 
-    public int calcuteHeuristic(MazeState acutalState, MazeState destinationState){
-        int xDistance = Math.abs(xPosition- destinationState.getXPosition());
-        int yDistance = Math.abs(yPosition - destinationState.getYPosition());
-        return (xDistance + yDistance) * 5;
-    }
+
 
 }
