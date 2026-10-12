@@ -29,10 +29,11 @@ public class MazeState {
     private Orientation orientation = Orientation.SOUTH;
 
 
-    public MazeState(int yPosition, Orientation orientation, int xPosition) {
+    public MazeState(int yPosition,int xPosition, Orientation orientation, MazeState previousState) {
         this.yPosition = yPosition;
         this.orientation = orientation;
         this.xPosition = xPosition;
+        this.previousState = previousState;
     }
 
 
@@ -70,6 +71,7 @@ public class MazeState {
                 totalCost + TURN_180_DEGREES_COST,
                 xPosition,
                 yPosition,
+                this,
                 Orientation.values()[nextValue]
         );
 
@@ -98,6 +100,7 @@ public class MazeState {
                 totalCost + MOVE_FORWARD_ONE_FIELD_COST,
                 x,
                 y,
+                this,
                 orientation
         );
     }

@@ -1,5 +1,9 @@
 package MazeEntity;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -11,6 +15,9 @@ import java.io.InputStream;
 * We make two dimension array of MazeTitle.
 * And also we make copy of our original maze to ensure we got exactly the same one.
 */
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
 public class Maze {
     private BufferedImage bitmap;
     private MazeTitle [][] logicalMaze;
