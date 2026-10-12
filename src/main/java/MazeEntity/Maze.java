@@ -7,8 +7,12 @@ import lombok.NoArgsConstructor;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.PriorityQueue;
+import java.util.Set;
+
 /*
 * This class represents our Maze which we load from directory.
 * Then we make logical version of our 'physical' (image) version.
@@ -93,16 +97,34 @@ public class Maze {
             return false;
         }
         else if(titleForCheck.isSolidBlock()){
-            System.out.println("Chosen position is solid block");
+            System.out.println("Chosen position is solid block. Position x : " + x + ", position y : " + y);
             return false;
         }else
             return true;
     }
 
+    public BufferedImage drawExploredArea(PriorityQueue<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState){
+        BufferedImage result = createPhysicalMazeFromLogicalState();
+        for (MazeState state : closedSet){
+            int x = state.getXPosition();
+            int y = state.getYPosition();
+            result.setRGB(x, y, Color.BLUE.getRGB());
+        }
+        for (MazeState state : bestWay){
+            int x = state.getXPosition();
+            int y = state.getYPosition();
 
-    private boolean isInBordersOfMaze(int x, int y){
+            result.setRGB(x, y, Color.RED.getRGB());
+        }
+        result.setRGB(startState.getXPosition(), startState.getYPosition(), Color.GREEN.getRGB());
+        result.setRGB(destinationState.getXPosition(), destinationState.getYPosition(), Color.YELLOW.getRGB());
+        try {
+            ImageIO.write(result, "bmp", new File("Bludiste-prosle.bmp"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-        return false;
+        return result;
     }
 
 

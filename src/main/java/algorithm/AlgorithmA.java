@@ -36,7 +36,7 @@ public class AlgorithmA {
 
     public void Start(){
         prepareEnvironment();
-        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(4,3,9,5);
+        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(5,3,5,31);
         startState = userSelectedStates[0];
         destinationState = userSelectedStates[1];
         actualState = startState;
@@ -47,7 +47,7 @@ public class AlgorithmA {
         while(!openList.isEmpty()){
             actualState = openList.poll();
             if(isDestinationReached()){
-                System.out.println("Final destination state reached");
+                System.out.println("Final destination state reached " + actualState.getTotalCost());
                 break;
             }
             closedList.add(actualState);
@@ -69,6 +69,7 @@ public class AlgorithmA {
                 openList.add(forwardState);
             }
         }
+        maze.drawExploredArea(openList, closedList, startState, destinationState);
     }
 
     public void vypis(){
