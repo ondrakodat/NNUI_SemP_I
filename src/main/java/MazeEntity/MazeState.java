@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Objects;
+
 /*
 * This class represents each state during discovering the best way to find our destination
 * It includes moving forward, turning left or right or turning 180 degrees
@@ -47,6 +49,7 @@ public class MazeState {
         newState.setXPosition(xPosition);
         newState.setOrientation(Orientation.values()[nextValue]);
         newState.setTotalCost(totalCost + TURN_LEFT_90_DEGREES_COST);
+        newState.setPreviousState(this);
         return newState;
     }
 
@@ -59,7 +62,7 @@ public class MazeState {
         newState.setTotalCost(totalCost + TURN_RIGHT_90_DEGREES_COST);
         newState.setXPosition(xPosition);
         newState.setYPosition(yPosition);
-
+        newState.setPreviousState(this);
         return newState;
     }
 
@@ -74,6 +77,7 @@ public class MazeState {
                 this,
                 Orientation.values()[nextValue]
         );
+
 
         return newState;
     }
@@ -139,5 +143,15 @@ public class MazeState {
     }
 
 
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        MazeState mazeState = (MazeState) o;
+        return xPosition == mazeState.xPosition && yPosition == mazeState.yPosition && orientation == mazeState.orientation;
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(xPosition, yPosition, orientation);
+    }
 }

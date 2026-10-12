@@ -17,9 +17,7 @@ import MazeEntity.Maze;
 import MazeEntity.MazeState;
 import enums.Orientation;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.*;
 
 public class AlgorithmA {
     private int startCostValue = 0;
@@ -29,7 +27,8 @@ public class AlgorithmA {
     private MazeState actualState;
     private MazeState destinationState;
 
-
+    PriorityQueue<MazeState> openList = new PriorityQueue<>((MazeState c1, MazeState c2) -> Integer.compare(calculateEstimatedTotalCost(c1), calculateEstimatedTotalCost(c2)));
+    Set<MazeState> closedList = new HashSet<>();
 
     public AlgorithmA(Maze maze) {
         this.maze = maze;
@@ -37,10 +36,6 @@ public class AlgorithmA {
 
     public void Start(){
         prepareEnvironment();
-
-        PriorityQueue<MazeState> openList = new PriorityQueue<>();
-        List<MazeState> closedList = new ArrayList<>();
-
         MazeState[] userSelectedStates = GiveStartAndDestinationPosition(0,0,5,5);
         startState = userSelectedStates[0];
         destinationState = userSelectedStates[1];
@@ -48,6 +43,18 @@ public class AlgorithmA {
 
 
         openList.add(actualState);
+
+        while(!openList.isEmpty()){
+            actualState = openList.poll();
+            if(isDestinationReached()){
+                System.out.println("Final destination state reached");
+                break;
+            }
+            closedList.add(actualState);
+            MazeState leftState = actualState.turnLeft90Degrees();
+            openList.add(leftState);
+        }
+
 
 
     }
@@ -86,14 +93,14 @@ public class AlgorithmA {
         maze.GetMazeFromFile();
     }
 
-    public int calcuteHeuristic(){
-        int xDistance = Math.abs(actualState.getXPosition()- destinationState.getXPosition());
-        int yDistance = Math.abs(actualState.getYPosition() - destinationState.getYPosition());
+    public int calcuteHeuristic(MazeState state){
+        int xDistance = Math.abs(state.getXPosition()- destinationState.getXPosition());
+        int yDistance = Math.abs(state.getYPosition() - destinationState.getYPosition());
         return (xDistance + yDistance) * 5;
     }
 
-    public int calculateEstimatedTotalCost(){
-        return actualState.getTotalCost() + calcuteHeuristic();
+    public int calculateEstimatedTotalCost(MazeState state){
+        return state.getTotalCost() + calcuteHeuristic(state);
     }
 
 }
