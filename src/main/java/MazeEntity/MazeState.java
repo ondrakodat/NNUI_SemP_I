@@ -136,7 +136,12 @@ public class MazeState {
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }
+    }
 
+    public int calcuteHeuristic(MazeState acutalState, MazeState destinationState){
+        int xDistance = Math.abs(xPosition- destinationState.getXPosition());
+        int yDistance = Math.abs(yPosition - destinationState.getYPosition());
+        return (xDistance + yDistance) * 5;
     }
 
 }
