@@ -10,8 +10,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.List;
 
 /*
 * This class represents our Maze which we load from directory.
@@ -103,7 +103,7 @@ public class Maze {
             return true;
     }
 
-    public BufferedImage drawExploredArea(PriorityQueue<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState){
+    public BufferedImage drawExploredArea(List<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState){
         BufferedImage result = createPhysicalMazeFromLogicalState();
         for (MazeState state : closedSet){
             int x = state.getXPosition();

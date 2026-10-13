@@ -26,9 +26,11 @@ public class AlgorithmA {
     private MazeState startState;
     private MazeState actualState;
     private MazeState destinationState;
+    private boolean foundDestination = false;
 
     PriorityQueue<MazeState> openList = new PriorityQueue<>((MazeState c1, MazeState c2) -> Integer.compare(calculateEstimatedTotalCost(c1), calculateEstimatedTotalCost(c2)));
     Set<MazeState> closedList = new HashSet<>();
+    List<MazeState> bestWay = new ArrayList<>();
 
     public AlgorithmA(Maze maze) {
         this.maze = maze;
@@ -48,6 +50,7 @@ public class AlgorithmA {
             actualState = openList.poll();
             if(isDestinationReached()){
                 System.out.println("Final destination state reached " + actualState.getTotalCost());
+                foundDestination = true;
                 break;
             }
             closedList.add(actualState);
@@ -69,7 +72,17 @@ public class AlgorithmA {
                 openList.add(forwardState);
             }
         }
-        maze.drawExploredArea(openList, closedList, startState, destinationState);
+        if (foundDestination) {
+            MazeState state = actualState;
+
+            while (state != null) {
+                bestWay.add(state);
+                state = state.getPreviousState();
+            }
+
+            Collections.reverse(bestWay);
+        }
+        maze.drawExploredArea(bestWay, closedList, startState, destinationState);
     }
 
     public void vypis(){
