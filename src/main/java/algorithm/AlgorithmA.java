@@ -67,7 +67,7 @@ public class AlgorithmA {
             if(!openList.contains(aroundState) && !closedList.contains(aroundState) )
                 openList.add(aroundState);
 
-            MazeState forwardState = actualState.moveForward();
+            MazeState forwardState = actualState.moveForward(maze);
             if(maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition()) && !openList.contains(forwardState) && !closedList.contains(forwardState)){
                 openList.add(forwardState);
             }

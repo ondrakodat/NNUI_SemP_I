@@ -82,21 +82,21 @@ public class MazeState {
         return newState;
     }
 
-    public MazeState moveForward(){
+    public MazeState moveForward(Maze maze){
         int x = xPosition;
         int y = yPosition;
         switch (orientation){
             case Orientation.EAST :
-                    x = moveOnXAxiom();
+                    x = moveOnXAxiom(maze);
                     break;
             case Orientation.WEST :
-                    x = moveOnXAxiom();
+                    x = moveOnXAxiom(maze);
                     break;
             case Orientation.NORTH :
-                y =  moveOnYAxiom();
+                y =  moveOnYAxiom(maze);
                 break;
             case Orientation.SOUTH :
-                  y = moveOnYAxiom();
+                  y = moveOnYAxiom(maze);
                   break;
         }
 
@@ -109,7 +109,7 @@ public class MazeState {
         );
     }
 
-    public int moveOnYAxiom(){
+    public int moveOnYAxiom(Maze maze){
         if(orientation == Orientation.NORTH){
             if(yPosition != 0){
                 return yPosition - 1;
@@ -118,14 +118,14 @@ public class MazeState {
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }else{
-            if(yPosition != 33){
+            if(yPosition != maze.getLogicalMaze().length){
                 return yPosition + 1;
             }else{
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }
     }
-    public int moveOnXAxiom(){
+    public int moveOnXAxiom(Maze maze){
         if(orientation == Orientation.WEST){
             if(xPosition != 0){
                 return xPosition - 1;
@@ -134,7 +134,7 @@ public class MazeState {
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }else {
-            if(xPosition != 33){
+            if(xPosition != maze.getLogicalMaze().length){
                 return xPosition + 1;
             }else{
                 throw new RuntimeException("Cant move outside of the maze!");

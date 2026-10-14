@@ -27,7 +27,7 @@ public class Maze {
     private MazeTitle [][] logicalMaze;
 
     public void GetMazeFromFile(){
-        InputStream input = getClass().getResourceAsStream("/Bludiste.bmp");
+        InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
         if(input == null){
             throw new RuntimeException("File does not exist!");
         }
@@ -46,21 +46,33 @@ public class Maze {
     }
 
     public void setupLogicalMaze(){
+        /*
+        Added small deviation for white color so not all color != -1 are solid blocks
+        color is 4 bajts
+        1st - transparency
+        2nd - red
+        3rd - green
+        4th - blue
+         */
         logicalMaze = new MazeTitle[bitmap.getWidth()][bitmap.getHeight()];
         for (int x = 0; x < bitmap.getWidth(); x++) {
             for (int y = 0; y < bitmap.getHeight(); y++) {
+                int colorOfPixel = bitmap.getRGB(x, y);
+                int red = (colorOfPixel >> 16) & 255;
+                int green = (colorOfPixel >> 8) & 255;
+                int blue = colorOfPixel & 255;
+
                 MazeTitle title = new MazeTitle();
                 title.setUpMazeTitle(x, y);
-                int color = bitmap.getRGB(x, y);
-                if (color == -16777216) {
-                    title.setUpMazeAsSolidBlock();
-                } else if (color == -1) {
+
+                if (red > 240 && blue > 240 && green > 240) {
                     title.setUpMazeAsNotSolidBlock();
+                } else {
+                    title.setUpMazeAsSolidBlock();
                 }
                 logicalMaze[x][y] = title;
             }
         }
-
     }
 
     private void printMazeSize() {
