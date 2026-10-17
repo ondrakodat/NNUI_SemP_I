@@ -1,5 +1,6 @@
 package MazeEntity;
 
+import algorithm.Sort;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,6 +11,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.List;
 
@@ -147,7 +150,7 @@ public class Maze {
         int previouisColor = 0;
 
         int randomRowOfMaze = 2;
-        int [] lenghts = new int[widthOfMaze];
+        int [] lenghtsOfDiffColors = new int[widthOfMaze];
 
         int swappedColors = 0;
 
@@ -156,19 +159,27 @@ public class Maze {
             if(isSameColor(bitmap.getRGB(i, randomRowOfMaze), previouisColor)){
                 currentLenght++;
             }else{
-                lenghts[swappedColors] = currentLenght;
+                lenghtsOfDiffColors[swappedColors] = currentLenght;
                 System.out.println("Actual lenght of color is : " + currentLenght);
                 swappedColors++;
                 currentLenght = 1;
             }
         }
-        lenghts[swappedColors] = currentLenght;
-        System.out.println("Délka posledního úseku: " + currentLenght);
+        lenghtsOfDiffColors[swappedColors] = currentLenght;
+        //System.out.println("Délka posledního úseku: " + lenghtsOfDiffColors[swappedColors-2]);
         swappedColors++;
 
-        System.out.println("Počet nalezených úseků: " + swappedColors);
+        //System.out.println("Počet nalezených úseků: " + (swappedColors - 2));
 
-        return swappedColors;
+        lenghtsOfDiffColors[0] = 0;
+        lenghtsOfDiffColors[lenghtsOfDiffColors.length-1] = 0;
+
+        Sort.sortFromLowest(lenghtsOfDiffColors);
+
+        for (int i = 0; i <swappedColors ; i++) {
+            System.out.println(i + " lenght is :  " + lenghtsOfDiffColors[i] + "\n");
+        }
+        return swappedColors-2;
     }
 
     private boolean isSameColor(int firstColor, int secondColor) {
