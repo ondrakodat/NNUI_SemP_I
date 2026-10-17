@@ -143,21 +143,19 @@ public class Maze {
         return result;
     }
 
-    public int findCellSize(){
+    public int findCellSize(int rowToTest){
         int widthOfMaze = bitmap.getWidth();
         //int heightOfMaze = bitmap.getHeight();
 
         int currentLenght = 1;
         int previouisColor = 0;
 
-        int randomRowOfMaze = 2;
-
         List<Integer> lenghtOFDifferentColor = new ArrayList<>();
         int swappedColors = 0;
 
         for (int i = 1; i < widthOfMaze; i++) {
-            previouisColor = bitmap.getRGB(i - 1, randomRowOfMaze);
-            if(isSameColor(bitmap.getRGB(i, randomRowOfMaze), previouisColor)){
+            previouisColor = bitmap.getRGB(i - 1, rowToTest);
+            if(isSameColor(bitmap.getRGB(i, rowToTest), previouisColor)){
                 currentLenght++;
             }else{
                 lenghtOFDifferentColor.add(currentLenght);
@@ -182,7 +180,31 @@ public class Maze {
 
         Arrays.stream(lenghtsOfDiffColors).forEach(System.out::println);
 
-        return swappedColors;
+        int lenghtOfFoundColorLines = lenghtsOfDiffColors.length;
+        int probablyMidlleValue = lenghtOfFoundColorLines/2;
+        int midlleValue = lenghtsOfDiffColors[probablyMidlleValue];
+        int expectedValue = 0;
+        int guessedRightCount = 0;
+        for (int i = 0; i < lenghtOfFoundColorLines; i++) {
+            if(midlleValue == lenghtsOfDiffColors[i]){
+                guessedRightCount++;
+            }
+        }
+
+//        if(guessedRightCount >= probablyMidlleValue)
+            expectedValue = midlleValue;
+
+
+        return expectedValue;
+    }
+
+    public int testFewRows(int [] arrayToTest){
+        int expectedVal = 0;
+        for (int i = 0; i < arrayToTest.length; i++) {
+            expectedVal += findCellSize(arrayToTest[i]);
+        }
+        int midlleValue = expectedVal / arrayToTest.length;
+        return midlleValue;
     }
 
     private boolean isSameColor(int firstColor, int secondColor) {
