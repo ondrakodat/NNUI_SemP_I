@@ -82,7 +82,7 @@ public class AlgorithmA {
 
             Collections.reverse(bestWay);
         }
-        maze.findCellSize(2);
+        maze.testFewRows(new int[]{2, 5, 6, 10, 15, 20, 100, 300, 200, 250, 230, 240, 220, 150, 130});
         maze.drawExploredArea(bestWay, closedList, startState, destinationState);
     }
 

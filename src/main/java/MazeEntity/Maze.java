@@ -31,7 +31,7 @@ public class Maze {
     private MazeTitle [][] logicalMaze;
 
     public void GetMazeFromFile(){
-        InputStream input = getClass().getResourceAsStream("/Bludiste.bmp");
+        InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
         if(input == null){
             throw new RuntimeException("File does not exist!");
         }
@@ -144,6 +144,11 @@ public class Maze {
     }
 
     public int findCellSize(int rowToTest){
+        if (rowToTest < 0 || rowToTest >= bitmap.getHeight()) {
+            System.out.println("Neplatný řádek: " + rowToTest);
+            return 0;
+        }
+
         int widthOfMaze = bitmap.getWidth();
         //int heightOfMaze = bitmap.getHeight();
 
@@ -166,6 +171,10 @@ public class Maze {
         }
         lenghtOFDifferentColor.add(currentLenght);
         swappedColors++;
+
+        if(lenghtOFDifferentColor.size() < 3){
+            return 0;
+        }
 
         lenghtOFDifferentColor.removeFirst();
         lenghtOFDifferentColor.removeLast();
@@ -204,6 +213,7 @@ public class Maze {
             expectedVal += findCellSize(arrayToTest[i]);
         }
         int midlleValue = expectedVal / arrayToTest.length;
+        System.out.println("Expected Value of row coridor width is : " + midlleValue);
         return midlleValue;
     }
 
