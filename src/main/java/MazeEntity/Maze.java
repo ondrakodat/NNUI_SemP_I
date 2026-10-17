@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.List;
@@ -144,14 +145,14 @@ public class Maze {
 
     public int findCellSize(){
         int widthOfMaze = bitmap.getWidth();
-        int heightOfMaze = bitmap.getHeight();
+        //int heightOfMaze = bitmap.getHeight();
 
         int currentLenght = 1;
         int previouisColor = 0;
 
         int randomRowOfMaze = 2;
-        int [] lenghtsOfDiffColors = new int[widthOfMaze];
 
+        List<Integer> lenghtOFDifferentColor = new ArrayList<>();
         int swappedColors = 0;
 
         for (int i = 1; i < widthOfMaze; i++) {
@@ -159,27 +160,29 @@ public class Maze {
             if(isSameColor(bitmap.getRGB(i, randomRowOfMaze), previouisColor)){
                 currentLenght++;
             }else{
-                lenghtsOfDiffColors[swappedColors] = currentLenght;
+                lenghtOFDifferentColor.add(currentLenght);
                 System.out.println("Actual lenght of color is : " + currentLenght);
                 swappedColors++;
                 currentLenght = 1;
             }
         }
-        lenghtsOfDiffColors[swappedColors] = currentLenght;
-        //System.out.println("Délka posledního úseku: " + lenghtsOfDiffColors[swappedColors-2]);
+        lenghtOFDifferentColor.add(currentLenght);
         swappedColors++;
 
-        //System.out.println("Počet nalezených úseků: " + (swappedColors - 2));
+        lenghtOFDifferentColor.removeFirst();
+        lenghtOFDifferentColor.removeLast();
 
-        lenghtsOfDiffColors[0] = 0;
-        lenghtsOfDiffColors[lenghtsOfDiffColors.length-1] = 0;
+        int [] lenghtsOfDiffColors = lenghtOFDifferentColor.stream().mapToInt(Integer::intValue).toArray();
+
+        swappedColors = swappedColors - 2;
 
         Sort.sortFromLowest(lenghtsOfDiffColors);
 
-        for (int i = 0; i <swappedColors ; i++) {
-            System.out.println(i + " lenght is :  " + lenghtsOfDiffColors[i] + "\n");
-        }
-        return swappedColors-2;
+        System.out.println(swappedColors + "S timto se bude pocitat");
+
+        Arrays.stream(lenghtsOfDiffColors).forEach(System.out::println);
+
+        return swappedColors;
     }
 
     private boolean isSameColor(int firstColor, int secondColor) {
