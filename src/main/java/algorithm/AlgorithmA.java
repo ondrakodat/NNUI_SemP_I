@@ -36,9 +36,9 @@ public class AlgorithmA {
         this.maze = maze;
     }
 
-    public void Start(){
+    public void Start(int startX, int startY, int destinatioX, int destinationY){
         prepareEnvironment();
-        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(5,3,5,31);
+        MazeState[] userSelectedStates = GiveStartAndDestinationPosition(startX,startY,destinatioX,destinationY);
         startState = userSelectedStates[0];
         destinationState = userSelectedStates[1];
         actualState = startState;
@@ -82,6 +82,7 @@ public class AlgorithmA {
 
             Collections.reverse(bestWay);
         }
+        maze.findCellSize();
         maze.drawExploredArea(bestWay, closedList, startState, destinationState);
     }
 

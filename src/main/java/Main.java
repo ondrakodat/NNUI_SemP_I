@@ -24,16 +24,7 @@ public class Main {
 
         AlgorithmA alg = new AlgorithmA(maze);
         alg.vypis();
-//        MazeState state = new MazeState();
-//        System.out.println(state.getOrientation().toString());
-//        MazeState s = state.turnAround180Degrees();
-//        System.out.println(s.getOrientation());
-//        MazeState w = s.turnLeft90Degrees();
-//        System.out.println(w.getOrientation());
-//        MazeState around = w.turnAround180Degrees();
-//        System.out.println(around.getOrientation());
-//        MazeState last = around.turnRight90Degrees();
-//        System.out.println(last.getOrientation());
-        alg.Start();
+
+        alg.Start(1, 1, 12, 5);
     }
 }

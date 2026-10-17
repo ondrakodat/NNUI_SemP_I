@@ -27,7 +27,7 @@ public class Maze {
     private MazeTitle [][] logicalMaze;
 
     public void GetMazeFromFile(){
-        InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
+        InputStream input = getClass().getResourceAsStream("/Bludiste.bmp");
         if(input == null){
             throw new RuntimeException("File does not exist!");
         }
@@ -65,7 +65,7 @@ public class Maze {
                 MazeTitle title = new MazeTitle();
                 title.setUpMazeTitle(x, y);
 
-                if (red > 240 && blue > 240 && green > 240) {
+                if (red > 235 && blue > 235 && green > 235) {
                     title.setUpMazeAsNotSolidBlock();
                 } else {
                     title.setUpMazeAsSolidBlock();
@@ -137,6 +137,53 @@ public class Maze {
         }
 
         return result;
+    }
+
+    public int findCellSize(){
+        int widthOfMaze = bitmap.getWidth();
+        int heightOfMaze = bitmap.getHeight();
+
+        int currentLenght = 1;
+        int previouisColor = 0;
+
+        int randomRowOfMaze = 2;
+        int [] lenghts = new int[widthOfMaze];
+
+        int swappedColors = 0;
+
+        for (int i = 1; i < widthOfMaze; i++) {
+            previouisColor = bitmap.getRGB(i - 1, randomRowOfMaze);
+            if(isSameColor(bitmap.getRGB(i, randomRowOfMaze), previouisColor)){
+                currentLenght++;
+            }else{
+                lenghts[swappedColors] = currentLenght;
+                System.out.println("Actual lenght of color is : " + currentLenght);
+                swappedColors++;
+                currentLenght = 1;
+            }
+        }
+        lenghts[swappedColors] = currentLenght;
+        System.out.println("Délka posledního úseku: " + currentLenght);
+        swappedColors++;
+
+        System.out.println("Počet nalezených úseků: " + swappedColors);
+
+        return swappedColors;
+    }
+
+    private boolean isSameColor(int firstColor, int secondColor) {
+        int red1 = (firstColor >> 16) & 255;
+        int green1 = (firstColor >> 8) & 255;
+        int blue1 = firstColor & 255;
+
+        int red2 = (secondColor >> 16) & 255;
+        int green2 = (secondColor >> 8) & 255;
+        int blue2 = secondColor & 255;
+
+        boolean firstIsWhite = red1 > 235 && green1 > 235 && blue1 > 235;
+        boolean secondIsWhite = red2 > 235 && green2 > 235 && blue2 > 235;
+
+        return firstIsWhite == secondIsWhite;
     }
 
 
