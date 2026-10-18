@@ -13,18 +13,18 @@ public class Main {
 
     // Původní konzolový vstup ponechán pro spuštění bez GUI.
     public static void runConsole() {
-        Maze maze = new Maze();
-        maze.GetMazeFromFile("/Bludiste.bmp");
-        maze.setupLogicalMaze();
-        BufferedImage imageOfMaze = maze.createPhysicalMazeFromLogicalState();
-        try {
-            ImageIO.write(imageOfMaze, "bmp", new File("Bludiste-output.bmp"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        System.out.println("Cesta ulozeneho bludiste : " + new File("Bludiste-output.bmp").getAbsolutePath());
-        AlgorithmA alg = new AlgorithmA(maze);
-        alg.vypis();
-        alg.Start(1, 1, 13, 11);
+//        Maze maze = new Maze();
+//        maze.GetMazeFromFile("/Bludiste.bmp");
+//        maze.setupLogicalMaze();
+//        BufferedImage imageOfMaze = maze.createPhysicalMazeFromLogicalState();
+//        try {
+//            ImageIO.write(imageOfMaze, "bmp", new File("Bludiste-output.bmp"));
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//        System.out.println("Cesta ulozeneho bludiste : " + new File("Bludiste-output.bmp").getAbsolutePath());
+//        AlgorithmA alg = new AlgorithmA(maze);
+//        alg.vypis();
+//        alg.Start(1, 1, 13, 11);
     }
 }

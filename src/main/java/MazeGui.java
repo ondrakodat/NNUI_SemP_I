@@ -302,6 +302,8 @@ public class MazeGui extends Application {
         double top = (canvas.getHeight() - imageHeight) / 2;
         g.drawImage(sourceImage, left, top, imageWidth, imageHeight);
         boolean colorMaze = maze.getResourcePath().endsWith("/Bludiste_barevne.png");
+        Color[][] corridorHighlights = maze.isCorridorCellGrid()
+                ? new Color[columns][rows] : null;
         for (int x = 0; x < columns; x++) {
             for (int y = 0; y < rows; y++) {
                 MazeTitle cell = maze.getLogicalMaze()[x][y];
@@ -331,6 +333,9 @@ public class MazeGui extends Application {
                     color = Color.web("#facc15");
                     highlighted = true;
                 }
+                if (corridorHighlights != null && highlighted) {
+                    corridorHighlights[x][y] = color;
+                }
                 g.setFill(color);
                 // The logical pitch locates cell centers (103px for the rhino
                 // maze); the visible corridor tile can be narrower than that.
@@ -353,6 +358,74 @@ public class MazeGui extends Application {
                 }
                 g.setStroke(colorMaze ? Color.web("#0f172a", .16) : Color.web("#64748b", .35));
                 g.strokeRect(cellLeft, cellTop, cellWidth, cellHeight);
+            }
+        }
+        if (corridorHighlights != null) {
+            for (int x = 0; x < columns; x++) {
+                for (int y = 0; y < rows; y++) {
+                    Color color = corridorHighlights[x][y];
+                    if (color == null) continue;
+                    if (x + 1 < columns && corridorHighlights[x + 1][y] != null
+                            && maze.isTransitionOpen(x, y, Orientation.EAST)) {
+                        drawCorridorConnector(g, left, top, scale, x, y,
+                                Orientation.EAST, color, corridorHighlights[x + 1][y]);
+                    }
+                    if (y + 1 < rows && corridorHighlights[x][y + 1] != null
+                            && maze.isTransitionOpen(x, y, Orientation.SOUTH)) {
+                        drawCorridorConnector(g, left, top, scale, x, y,
+                                Orientation.SOUTH, color, corridorHighlights[x][y + 1]);
+                    }
+                }
+            }
+        }
+    }
+
+    private void drawCorridorConnector(GraphicsContext g, double imageLeft, double imageTop,
+                                       double scale, int x, int y,
+                                       Orientation direction, Color color, Color nextColor) {
+        double centerX = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2.0;
+        double centerY = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2.0;
+        double halfWidth = maze.getDisplayCellWidth() / 2.0;
+        double halfHeight = maze.getDisplayCellHeight() / 2.0;
+        double x1, y1, x2, y2;
+        if (direction == Orientation.EAST) {
+            double nextCenterX = centerX + maze.getCellSize();
+            x1 = centerX + halfWidth - 1;
+            x2 = nextCenterX - halfWidth + 1;
+            y1 = centerY - halfHeight;
+            y2 = centerY + halfHeight;
+        } else {
+            double nextCenterY = centerY + maze.getCellSize();
+            x1 = centerX - halfWidth;
+            x2 = centerX + halfWidth;
+            y1 = centerY + halfHeight - 1;
+            y2 = nextCenterY - halfHeight + 1;
+        }
+        x1 = Math.max(x1, maze.getLeftBorder());
+        y1 = Math.max(y1, maze.getTopBorder());
+        x2 = Math.min(x2, maze.getRightBorder() + 1.0);
+        y2 = Math.min(y2, maze.getBottomBorder() + 1.0);
+        if (x2 > x1 && y2 > y1) {
+            if (color.equals(nextColor)) {
+                g.setFill(color);
+                g.fillRect(imageLeft + x1 * scale, imageTop + y1 * scale,
+                        (x2 - x1) * scale, (y2 - y1) * scale);
+            } else if (direction == Orientation.EAST) {
+                double middleX = (x1 + x2) / 2.0;
+                g.setFill(color);
+                g.fillRect(imageLeft + x1 * scale, imageTop + y1 * scale,
+                        (middleX - x1) * scale, (y2 - y1) * scale);
+                g.setFill(nextColor);
+                g.fillRect(imageLeft + middleX * scale, imageTop + y1 * scale,
+                        (x2 - middleX) * scale, (y2 - y1) * scale);
+            } else {
+                double middleY = (y1 + y2) / 2.0;
+                g.setFill(color);
+                g.fillRect(imageLeft + x1 * scale, imageTop + y1 * scale,
+                        (x2 - x1) * scale, (middleY - y1) * scale);
+                g.setFill(nextColor);
+                g.fillRect(imageLeft + x1 * scale, imageTop + middleY * scale,
+                        (x2 - x1) * scale, (y2 - middleY) * scale);
             }
         }
     }
