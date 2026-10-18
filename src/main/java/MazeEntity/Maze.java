@@ -35,8 +35,8 @@ public class Maze {
     private int topBorder;
     private int bottomBorder;
 
-    public void GetMazeFromFile() {
-        InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
+    public void GetMazeFromFile(String path) {
+        InputStream input = getClass().getResourceAsStream(path);
         if (input == null) {
             throw new RuntimeException("File does not exist!");
         }
