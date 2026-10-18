@@ -381,6 +381,15 @@ public class Maze {
                 mazeHeight / 4
         });
 
+        System.out.println("Rozměry oříznutého obrázku: "
+                + mazeWidth + " × " + mazeHeight);
+
+        System.out.println("Zbytek šířky po rozdělení: "
+                + mazeWidth % cellSize);
+
+        System.out.println("Zbytek výšky po rozdělení: "
+                + mazeHeight % cellSize);
+
         if (cellSize <= 0) {
             throw new IllegalStateException(
                     "Nepodařilo se zjistit velikost buňky."
@@ -406,6 +415,17 @@ public class Maze {
 
                     for (int py = y * cellSize;
                          py < (y + 1) * cellSize; py++) {
+                        int totalPixels = cellSize * cellSize;
+
+                        if (x == 10 && y == 10) {
+                            System.out.println(
+                                    "Buňka (" + x + ", " + y + ")"
+                                            + ", začátek: (" + (x * cellSize)
+                                            + ", " + (y * cellSize) + ")"
+                                            + ", bílé pixely: " + whitePixels
+                                            + "/" + totalPixels
+                            );
+                        }
 
                         if (isWhiteOrNot(bitmap.getRGB(px, py))) {
                             whitePixels++;
@@ -415,14 +435,18 @@ public class Maze {
 
                 int totalPixels = cellSize * cellSize;
 
+                if (whitePixels > 0 && whitePixels < totalPixels) {
+                    System.out.println(
+                            "Smíšená buňka x=" + x + ", y=" + y
+                                    + ", bílé pixely=" + whitePixels
+                                    + "/" + totalPixels
+                    );
+                }
+
                 if (whitePixels > totalPixels / 2) {
-                    reducedMaze.setRGB(
-                            x, y, Color.WHITE.getRGB()
-                    );
+                    reducedMaze.setRGB(x, y, Color.WHITE.getRGB());
                 } else {
-                    reducedMaze.setRGB(
-                            x, y, Color.BLACK.getRGB()
-                    );
+                    reducedMaze.setRGB(x, y, Color.BLACK.getRGB());
                 }
             }
         }
