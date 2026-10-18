@@ -222,7 +222,9 @@ public class MazeGui extends Application {
                 System.identityHashCode(maze), System.identityHashCode(maze.getLogicalMaze()),
                 x, y, sourceX, sourceY, centerX, centerY, sampledRgb & 0x00ffffff,
                 sampledAsWhite, classifiedAsWall ? "ZEĎ" : "CHODBA");
-        if (maze.isCorridorCellGrid() && !maze.isPassableImagePixel(sourceX, sourceY)) {
+        boolean validateClickedPixel = maze.isCorridorCellGrid()
+                || maze.getResourcePath().endsWith("/Bludiste_barevne.png");
+        if (validateClickedPixel && !maze.isPassableImagePixel(sourceX, sourceY)) {
             runState.setText("Klikněte do světlé průchozí části chodby.");
             return;
         }
@@ -299,47 +301,57 @@ public class MazeGui extends Application {
         double left = (canvas.getWidth() - imageWidth) / 2;
         double top = (canvas.getHeight() - imageHeight) / 2;
         g.drawImage(sourceImage, left, top, imageWidth, imageHeight);
+        boolean colorMaze = maze.getResourcePath().endsWith("/Bludiste_barevne.png");
         for (int x = 0; x < columns; x++) {
             for (int y = 0; y < rows; y++) {
                 MazeTitle cell = maze.getLogicalMaze()[x][y];
                 Color color = cell.isSolidBlock()
                         ? Color.web("#111827", .48) : Color.web("#f8fafc", .22);
+                boolean highlighted = false;
                 if (resultImage != null) {
                     int ix = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2;
                     int iy = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2;
                     if (ix < resultImage.getWidth() && iy < resultImage.getHeight()) {
                         int rgb = resultImage.getRGB(ix, iy);
-                        if ((rgb & 0x00ffffff) == 0x000000ff) color = Color.web("#60a5fa", .75);
-                        if ((rgb & 0x00ffffff) == 0x00ff0000) color = Color.web("#ef4444", .75);
+                        if ((rgb & 0x00ffffff) == 0x000000ff) {
+                            color = Color.web("#60a5fa", .75);
+                            highlighted = true;
+                        }
+                        if ((rgb & 0x00ffffff) == 0x00ff0000) {
+                            color = Color.web("#ef4444", .75);
+                            highlighted = true;
+                        }
                     }
                 }
-                if (startX != null && x == startX && y == startY) color = Color.web("#22c55e");
-                if (goalX != null && x == goalX && y == goalY) color = Color.web("#facc15");
+                if (startX != null && x == startX && y == startY) {
+                    color = Color.web("#22c55e");
+                    highlighted = true;
+                }
+                if (goalX != null && x == goalX && y == goalY) {
+                    color = Color.web("#facc15");
+                    highlighted = true;
+                }
                 g.setFill(color);
-                int cellPixelLeft = maze.getGridOriginX() + x * maze.getCellSize();
-                int cellPixelTop = maze.getGridOriginY() + y * maze.getCellSize();
+                // The logical pitch locates cell centers (103px for the rhino
+                // maze); the visible corridor tile can be narrower than that.
+                int centerX = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2;
+                int centerY = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2;
+                int cellPixelLeft = centerX - maze.getDisplayCellWidth() / 2;
+                int cellPixelTop = centerY - maze.getDisplayCellHeight() / 2;
                 int visibleLeft = Math.max(cellPixelLeft, maze.getLeftBorder());
                 int visibleTop = Math.max(cellPixelTop, maze.getTopBorder());
-                int visibleRight = Math.min(cellPixelLeft + maze.getCellSize(), maze.getRightBorder() + 1);
-                int visibleBottom = Math.min(cellPixelTop + maze.getCellSize(), maze.getBottomBorder() + 1);
+                int visibleRight = Math.min(cellPixelLeft + maze.getDisplayCellWidth(), maze.getRightBorder() + 1);
+                int visibleBottom = Math.min(cellPixelTop + maze.getDisplayCellHeight(), maze.getBottomBorder() + 1);
                 double cellLeft = left + visibleLeft * scale;
                 double cellTop = top + visibleTop * scale;
                 double cellWidth = (visibleRight - visibleLeft) * scale;
                 double cellHeight = (visibleBottom - visibleTop) * scale;
-                if (!maze.isCorridorCellGrid()) {
+                if (!maze.isCorridorCellGrid() && !colorMaze) {
                     g.fillRect(cellLeft, cellTop, cellWidth, cellHeight);
-                } else if ((startX != null && x == startX && y == startY)
-                        || (goalX != null && x == goalX && y == goalY)
-                        || (resultImage != null && (color.equals(Color.web("#60a5fa", .75))
-                        || color.equals(Color.web("#ef4444", .75))))) {
-                    double diameter = maze.getCellSize() * .24 * scale;
-                    double markerX = left + (maze.getGridOriginX() + x * maze.getCellSize()
-                            + maze.getCellSize() / 2.0) * scale - diameter / 2;
-                    double markerY = top + (maze.getGridOriginY() + y * maze.getCellSize()
-                            + maze.getCellSize() / 2.0) * scale - diameter / 2;
-                    g.fillOval(markerX, markerY, diameter, diameter);
+                } else if (highlighted) {
+                    g.fillRect(cellLeft, cellTop, cellWidth, cellHeight);
                 }
-                g.setStroke(Color.web("#64748b", .35));
+                g.setStroke(colorMaze ? Color.web("#0f172a", .16) : Color.web("#64748b", .35));
                 g.strokeRect(cellLeft, cellTop, cellWidth, cellHeight);
             }
         }

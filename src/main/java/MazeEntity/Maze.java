@@ -41,6 +41,8 @@ public class Maze {
     private String resourcePath = "/Bludiste.bmp";
     private int gridOriginX;
     private int gridOriginY;
+    private int displayCellWidth;
+    private int displayCellHeight;
     private boolean corridorCellGrid;
     private boolean[][][] openTransitions;
 
@@ -110,12 +112,16 @@ public class Maze {
             if (corridorCellGrid) {
                 int[] geometry = detectCorridorGeometry();
                 cellSize = geometry[0];
+                displayCellWidth = geometry[3];
+                displayCellHeight = geometry[4];
                 int firstCenterX = leftBorder + geometry[1];
                 int firstCenterY = topBorder + geometry[2];
                 gridOriginX = firstCenterX - cellSize / 2;
                 gridOriginY = firstCenterY - cellSize / 2;
             } else {
                 cellSize = sampledRunSize;
+                displayCellWidth = cellSize;
+                displayCellHeight = cellSize;
                 gridOriginX = leftBorder;
                 gridOriginY = topBorder;
             }
@@ -154,7 +160,7 @@ public class Maze {
                     MazeTitle title = new MazeTitle();
                     title.setUpMazeTitle(x, y);
 
-                    if (isWhiteOrNot(color)) {
+                    if (isPassablePixel(color)) {
                         title.setUpMazeAsNotSolidBlock();
                     } else {
                         title.setUpMazeAsSolidBlock();
@@ -180,7 +186,7 @@ public class Maze {
             System.out.println("Počátek logické mřížky: " + gridOriginX + ", " + gridOriginY);
             System.out.println("Zbytek šířky: " + (rightBorder - leftBorder + 1) % cellSize);
             System.out.println("Zbytek výšky: " + (bottomBorder - topBorder + 1) % cellSize);
-            if (corridorCellGrid) buildOpenTransitions();
+            if (corridorCellGrid || isColorMaze()) buildOpenTransitions();
         }
 
 
@@ -202,7 +208,7 @@ public class Maze {
 
         // In the corridor-center representation the walls are transitions
         // between cells, so repainting each logical cell would erase them.
-        if (corridorCellGrid) {
+        if (corridorCellGrid || isColorMaze()) {
             g.dispose();
             return result;
         }
@@ -242,22 +248,12 @@ public class Maze {
             return;
         }
 
-        int startX = gridOriginX + x * cellSize;
-        int startY = gridOriginY + y * cellSize;
-        if (corridorCellGrid) {
-            int centerX = startX + cellSize / 2;
-            int centerY = startY + cellSize / 2;
-            int diameter = Math.max(3, cellSize / 4);
-            int markerX = centerX - diameter / 2;
-            int markerY = centerY - diameter / 2;
-            Graphics2D g = image.createGraphics();
-            g.setColor(color);
-            g.fillOval(markerX, markerY, diameter, diameter);
-            g.dispose();
-            return;
-        }
-        int endX = Math.min(Math.min(startX + cellSize, rightBorder + 1), image.getWidth());
-        int endY = Math.min(Math.min(startY + cellSize, bottomBorder + 1), image.getHeight());
+        int centerX = gridOriginX + x * cellSize + cellSize / 2;
+        int centerY = gridOriginY + y * cellSize + cellSize / 2;
+        int startX = centerX - displayCellWidth / 2;
+        int startY = centerY - displayCellHeight / 2;
+        int endX = Math.min(Math.min(startX + displayCellWidth, rightBorder + 1), image.getWidth());
+        int endY = Math.min(Math.min(startY + displayCellHeight, bottomBorder + 1), image.getHeight());
         int clippedStartX = Math.max(Math.max(startX, leftBorder), 0);
         int clippedStartY = Math.max(Math.max(startY, topBorder), 0);
 
@@ -309,7 +305,26 @@ public class Maze {
 
     public boolean isPassableImagePixel(int x, int y) {
         return x >= 0 && y >= 0 && x < bitmap.getWidth() && y < bitmap.getHeight()
-                && isWhiteOrNot(bitmap.getRGB(x, y));
+                && isPassablePixel(bitmap.getRGB(x, y));
+    }
+
+    private boolean isColorMaze() {
+        return resourcePath.endsWith("/Bludiste_barevne.png");
+    }
+
+    private boolean isPassablePixel(int color) {
+        if (!isColorMaze()) return isWhiteOrNot(color);
+
+        int red = (color >> 16) & 255;
+        int green = (color >> 8) & 255;
+        int blue = color & 255;
+        int minimum = Math.min(red, Math.min(green, blue));
+        int maximum = Math.max(red, Math.max(green, blue));
+
+        // This maze's corridors are pale blue/near-white; its walls are
+        // saturated or dark. Requiring both lightness and low chroma keeps
+        // bright red/yellow/blue wall pixels classified as walls.
+        return minimum >= 210 && maximum - minimum <= 60;
     }
 
     private int[] detectCorridorGeometry() {
@@ -328,7 +343,7 @@ public class Maze {
         int phaseY = findGridPhase(false, spacing);
         System.out.printf("[CORRIDOR-GEOMETRY] wall=%d/%d px, passage=%d/%d px, pitch=%d/%d px, phase=%d/%d px%n",
                 wallX, wallY, passageX, passageY, spacingX, spacingY, phaseX, phaseY);
-        return new int[]{spacing, phaseX, phaseY};
+        return new int[]{spacing, phaseX, phaseY, passageX, passageY};
     }
 
     private int dominantRunWidth(boolean alongX, boolean whiteRuns) {
@@ -472,7 +487,7 @@ public class Maze {
             int px = startX + (endX - startX) * step / length;
             int py = startY + (endY - startY) * step / length;
             total++;
-            if (isWhiteOrNot(bitmap.getRGB(px, py))) white++;
+            if (isPassablePixel(bitmap.getRGB(px, py))) white++;
         }
         // Open passages have almost entirely white cross-sections; a wall occupies
         // roughly one third of a pitch, leaving a wide gap between both classes.
