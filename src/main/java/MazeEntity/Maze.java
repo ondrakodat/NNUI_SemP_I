@@ -213,9 +213,6 @@ public class Maze {
     }
 
     public int testFewRows(int[] arrayToTest) {
-
-
-
         int expectedVal = 0;
         int validrows = 0;
 
@@ -254,6 +251,27 @@ public class Maze {
         boolean secondIsWhite = red2 > 235 && green2 > 235 && blue2 > 235;
 
         return firstIsWhite == secondIsWhite;
+    }
+
+    public void CreateNewLogicalMazeAfterTestingRowsLenght(){
+        int mazeHeight = bitmap.getHeight();
+        int mazeWidth = bitmap.getWidth();
+
+        int expectedWidthOfOneCoridor = testFewRows(new int[]{2, 5, 6, 10, 15, 20, 100, 200, 250, 230, 240, 220, 150, 130});
+
+        System.out.println("Original maze height : " + mazeHeight);
+        System.out.println("Original maze width : " + mazeWidth);
+
+        int newHeight = mazeHeight / expectedWidthOfOneCoridor;
+        int newWidth = mazeWidth / expectedWidthOfOneCoridor;
+
+        System.out.printf("New maze height : " + newHeight);
+        System.out.printf("New maze widht : " + newWidth);
+    }
+
+    public void findBordersOfMaze(){
+        //TODO find line of top width and also bot width with left heigt line and right height line and make intersektor from it and be able to cut the image
+
     }
 
 
