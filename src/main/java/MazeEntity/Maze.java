@@ -29,6 +29,11 @@ public class Maze {
     private BufferedImage bitmap;
     private MazeTitle[][] logicalMaze;
     private boolean isCropped = false;
+    private int cellSize;
+    private int leftBorder;
+    private int rightBorder;
+    private int topBorder;
+    private int bottomBorder;
 
     public void GetMazeFromFile() {
         InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
@@ -45,103 +50,201 @@ public class Maze {
         if (bitmap == null) {
             throw new RuntimeException("File could not be read!");
         }
-        printMazeSize();
+        findBordersOfMaze();
         setupLogicalMaze();
     }
 
-    public void setupLogicalMaze() {
-        /*
-        Added small deviation for white color so not all color != -1 are solid blocks
-        color is 4 bajts
-        1st - transparency
-        2nd - red
-        3rd - green
-        4th - blue
-         */
-        logicalMaze = new MazeTitle[bitmap.getWidth()][bitmap.getHeight()];
-        for (int x = 0; x < bitmap.getWidth(); x++) {
-            for (int y = 0; y < bitmap.getHeight(); y++) {
-                int colorOfPixel = bitmap.getRGB(x, y);
-                int red = (colorOfPixel >> 16) & 255;
-                int green = (colorOfPixel >> 8) & 255;
-                int blue = colorOfPixel & 255;
+//    public void setupLogicalMaze() {
+//        /*
+//        Added small deviation for white color so not all color != -1 are solid blocks
+//        color is 4 bajts
+//        1st - transparency
+//        2nd - red
+//        3rd - green
+//        4th - blue
+//         */
+//        logicalMaze = new MazeTitle[bitmap.getWidth()][bitmap.getHeight()];
+//        for (int x = 0; x < bitmap.getWidth(); x++) {
+//            for (int y = 0; y < bitmap.getHeight(); y++) {
+//                int colorOfPixel = bitmap.getRGB(x, y);
+//                int red = (colorOfPixel >> 16) & 255;
+//                int green = (colorOfPixel >> 8) & 255;
+//                int blue = colorOfPixel & 255;
+//
+//                MazeTitle title = new MazeTitle();
+//                title.setUpMazeTitle(x, y);
+//
+//                if (red > 235 && blue > 235 && green > 235) {
+//                    title.setUpMazeAsNotSolidBlock();
+//                } else {
+//                    title.setUpMazeAsSolidBlock();
+//                }
+//                logicalMaze[x][y] = title;
+//            }
+//        }
+//    }
+        public void setupLogicalMaze() {
+            cellSize = testFewRows(new int[]{
+                    bitmap.getHeight() / 2,
+                    bitmap.getHeight() / 3,
+                    bitmap.getHeight() / 4
+            });
 
-                MazeTitle title = new MazeTitle();
-                title.setUpMazeTitle(x, y);
-
-                if (red > 235 && blue > 235 && green > 235) {
-                    title.setUpMazeAsNotSolidBlock();
-                } else {
-                    title.setUpMazeAsSolidBlock();
-                }
-                logicalMaze[x][y] = title;
+            if (cellSize <= 0) {
+                throw new IllegalStateException(
+                        "Nepodařilo se určit velikost buňky."
+                );
             }
-        }
-    }
 
-    private void printMazeSize() {
-    }
+            int mazeWidth = rightBorder - leftBorder + 1;
+            int mazeHeight = bottomBorder - topBorder + 1;
+
+            int columns = mazeWidth / cellSize;
+            int rows = mazeHeight / cellSize;
+
+            logicalMaze = new MazeTitle[columns][rows];
+
+            for (int x = 0; x < columns; x++) {
+                for (int y = 0; y < rows; y++) {
+
+                    int pixelX = leftBorder + x * cellSize + cellSize / 2;
+                    int pixelY = topBorder + y * cellSize + cellSize / 2;
+
+                    int color = bitmap.getRGB(pixelX, pixelY);
+
+                    MazeTitle title = new MazeTitle();
+                    title.setUpMazeTitle(x, y);
+
+                    if (isWhiteOrNot(color)) {
+                        title.setUpMazeAsNotSolidBlock();
+                    } else {
+                        title.setUpMazeAsSolidBlock();
+                    }
+
+                    logicalMaze[x][y] = title;
+                }
+            }
+            System.out.println("Rozměry obrázku: "
+                    + bitmap.getWidth() + " × " + bitmap.getHeight());
+
+            System.out.println("Hranice X: "
+                    + leftBorder + " až " + rightBorder);
+
+            System.out.println("Hranice Y: "
+                    + topBorder + " až " + bottomBorder);
+
+            System.out.println("Velikost buňky: " + cellSize);
+
+            System.out.println("Logické bludiště: "
+                    + columns + " × " + rows);
+
+            System.out.println("Zbytek šířky: " + mazeWidth % cellSize);
+            System.out.println("Zbytek výšky: " + mazeHeight % cellSize);
+        }
+
+
+
+//    private void printMazeSize() {
+//    }
+
 
     public BufferedImage createPhysicalMazeFromLogicalState() {
-        BufferedImage bmtMaze = new BufferedImage(bitmap.getWidth(), bitmap.getHeight(), BufferedImage.TYPE_INT_RGB);
+        BufferedImage result = new BufferedImage(
+                bitmap.getWidth(),
+                bitmap.getHeight(),
+                BufferedImage.TYPE_INT_RGB
+        );
 
-        for (int x = 0; x < bitmap.getWidth(); x++) {
-            for (int y = 0; y < bitmap.getHeight(); y++) {
+        // Zachováme původní obrázek včetně bílého okolí.
+        Graphics2D g = result.createGraphics();
+        g.drawImage(bitmap, 0, 0, null);
+
+        // Každou logickou buňku vykreslíme přes původní buňku.
+        for (int x = 0; x < logicalMaze.length; x++) {
+            for (int y = 0; y < logicalMaze[x].length; y++) {
                 MazeTitle title = logicalMaze[x][y];
-                if (title.isSolidBlock())
-                    bmtMaze.setRGB(x, y, Color.BLACK.getRGB());
-                else {
-                    bmtMaze.setRGB(x, y, Color.WHITE.getRGB());
+
+                int pixelX = leftBorder + x * cellSize;
+                int pixelY = topBorder + y * cellSize;
+
+                if (title.isSolidBlock()) {
+                    g.setColor(Color.BLACK);
+                } else {
+                    g.setColor(Color.WHITE);
+                }
+
+                g.fillRect(pixelX, pixelY, cellSize, cellSize);
+            }
+        }
+
+        g.dispose();
+        return result;
+    }
+
+
+    private void drawCell(BufferedImage image, int x, int y, Color color) {
+        int startX = leftBorder + x * cellSize;
+        int startY = topBorder + y * cellSize;
+
+        for (int px = startX; px < startX + cellSize; px++) {
+            for (int py = startY; py < startY + cellSize; py++) {
+                if (px < image.getWidth() && py < image.getHeight()) {
+                    image.setRGB(px, py, color.getRGB());
                 }
             }
         }
-        return bmtMaze;
     }
 
-    public boolean areValidEnterStates(int x, int y) throws ArrayIndexOutOfBoundsException {
-        MazeTitle titleForCheck = logicalMaze[x][y];
-        int xCoordinates = titleForCheck.getXCoordinates();
-        int yCoordinates = titleForCheck.getYCoordinates();
-        int bordersOfX = logicalMaze.length;
-        int bordersOfY = logicalMaze[x].length;
-        if (xCoordinates >= bordersOfX || xCoordinates < 0) {
-            System.out.println("Chosen position is not inside of maze with X position");
-            return false;
-        } else if (yCoordinates >= bordersOfY || yCoordinates < 0) {
-            System.out.println("Chosen position is not inside of maze with Y position");
-            return false;
-        } else if (titleForCheck.isSolidBlock()) {
-            System.out.println("Chosen position is solid block. Position x : " + x + ", position y : " + y);
-            return false;
-        } else
-            return true;
-    }
 
-    public void cropMaze() {
-        if (isCropped) {
-            return;
+
+
+    public boolean areValidEnterStates(int x, int y) {
+        if (x < 0 || x >= logicalMaze.length
+                || y < 0 || y >= logicalMaze[x].length) {
+            System.out.println("Zadaná pozice je mimo bludiště.");
+            return false;
         }
 
-        bitmap = findBordersOfMaze();
-        setupLogicalMaze();
-        isCropped = true;
+        MazeTitle titleForCheck = logicalMaze[x][y];
+
+        if (titleForCheck.isSolidBlock()) {
+            System.out.println(
+                    "Zadaná pozice je zeď. X: " + x + ", Y: " + y
+            );
+            return false;
+        }
+
+        return true;
     }
+
+
+//    public void cropMaze() {
+//        if (isCropped) {
+//            return;
+//        }
+//
+//        bitmap = findBordersOfMaze();
+//        setupLogicalMaze();
+//        isCropped = true;
+//    }
 
     public BufferedImage drawExploredArea(List<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState) {
         BufferedImage result = createPhysicalMazeFromLogicalState();
         for (MazeState state : closedSet) {
-            int x = state.getXPosition();
-            int y = state.getYPosition();
-            result.setRGB(x, y, Color.BLUE.getRGB());
+            drawCell(result, state.getXPosition(),
+                    state.getYPosition(), Color.BLUE);
         }
-        for (MazeState state : bestWay) {
-            int x = state.getXPosition();
-            int y = state.getYPosition();
 
-            result.setRGB(x, y, Color.RED.getRGB());
+        for (MazeState state : bestWay) {
+            drawCell(result, state.getXPosition(),
+                    state.getYPosition(), Color.RED);
         }
-        result.setRGB(startState.getXPosition(), startState.getYPosition(), Color.GREEN.getRGB());
-        result.setRGB(destinationState.getXPosition(), destinationState.getYPosition(), Color.YELLOW.getRGB());
+
+        drawCell(result, startState.getXPosition(),
+                startState.getYPosition(), Color.GREEN);
+
+        drawCell(result, destinationState.getXPosition(),
+                destinationState.getYPosition(), Color.YELLOW);
         try {
             ImageIO.write(result, "bmp", new File("Bludiste-prosle.bmp"));
         } catch (IOException e) {
@@ -287,15 +390,15 @@ public class Maze {
         System.out.printf("New maze widht : " + newWidth);
     }
 
-    public BufferedImage findBordersOfMaze(){
+    public void findBordersOfMaze(){
         //TODO find line of top width and also bot width with left heigt line and right height line and make intersektor from it and be able to cut the image
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
 
-        int topBorder = -1;
-        int bottomBorder = -1;
-        int leftBorder = -1;
-        int rightBorder = -1;
+        topBorder = -1;
+        bottomBorder = -1;
+        leftBorder = -1;
+        rightBorder = -1;
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -348,26 +451,18 @@ public class Maze {
                 break;
             }
         }
-        topBorder++;
-        bottomBorder--;
 
         System.out.println("Horní hranice: " + topBorder);
         System.out.println("Dolní hranice: " + bottomBorder);
         System.out.println("Levá hranice: " + leftBorder);
         System.out.println("Pravá hranice: " + rightBorder);
 
-        BufferedImage mazeWithDrawedBorders = bitmap.getSubimage(
-                leftBorder,
-                topBorder,
-                rightBorder - leftBorder + 1,
-                bottomBorder - topBorder + 1
-        );
 
-        return mazeWithDrawedBorders;
+
     }
 
 
-
+    /*
     public void CreateReducedMaze() {
 
         cropMaze();
@@ -443,7 +538,7 @@ public class Maze {
                     );
                 }
 
-                if (whitePixels > totalPixels / 2) {
+                if (whitePixels >= totalPixels / 2) {
                     reducedMaze.setRGB(x, y, Color.WHITE.getRGB());
                 } else {
                     reducedMaze.setRGB(x, y, Color.BLACK.getRGB());
@@ -467,7 +562,7 @@ public class Maze {
                         + newWidth + " × " + newHeight
         );
     }
-
+    */
 
 }
 
