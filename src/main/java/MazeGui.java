@@ -10,6 +10,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -29,6 +31,7 @@ public class MazeGui extends Application {
     private Label startLabel, goalLabel, runState, details;
     private Integer startX, startY, goalX, goalY;
     private BufferedImage resultImage;
+    private Image sourceImage;
     private boolean running;
     private String selectedMazePath = "/Bludiste.bmp";
 
@@ -36,6 +39,7 @@ public class MazeGui extends Application {
     public void start(Stage stage) {
         try {
             maze.GetMazeFromFile(selectedMazePath);
+            sourceImage = toFxImage(maze.getBitmap());
         } catch (RuntimeException e) {
             showError("Bludiště se nepodařilo načíst", e.getMessage());
             return;
@@ -146,6 +150,7 @@ public class MazeGui extends Application {
         String previousPath = selectedMazePath;
         try {
             maze.GetMazeFromFile(option.resourcePath());
+            sourceImage = toFxImage(maze.getBitmap());
             selectedMazePath = option.resourcePath();
             resetSearch();
             drawMaze();
@@ -178,15 +183,45 @@ public class MazeGui extends Application {
 
     private void setPoint(double px, double py) {
         if ("Vypnuto".equals(clickMode.getValue()) || running) return;
-        double scale = Math.min(canvas.getWidth() / maze.getLogicalMaze().length,
-                canvas.getHeight() / maze.getLogicalMaze()[0].length);
-        double width = maze.getLogicalMaze().length * scale;
-        double height = maze.getLogicalMaze()[0].length * scale;
-        double left = (canvas.getWidth() - width) / 2;
-        double top = (canvas.getHeight() - height) / 2;
-        if (px < left || py < top || px >= left + width || py >= top + height) return;
-        int x = (int) ((px - left) / scale);
-        int y = (int) ((py - top) / scale);
+        int columns = maze.getLogicalMaze().length;
+        int rows = maze.getLogicalMaze()[0].length;
+        double canvasWidth = canvas.getWidth();
+        double canvasHeight = canvas.getHeight();
+        double imageScale = Math.min(canvasWidth / maze.getBitmap().getWidth(),
+                canvasHeight / maze.getBitmap().getHeight());
+        double imageWidth = maze.getBitmap().getWidth() * imageScale;
+        double imageHeight = maze.getBitmap().getHeight() * imageScale;
+        double imageLeft = (canvasWidth - imageWidth) / 2;
+        double imageTop = (canvasHeight - imageHeight) / 2;
+        System.out.printf("[CLICK] GUI=(%.2f, %.2f), imageArea=%.2f×%.2f, scale=%.5f, offset=(%.2f, %.2f)%n",
+                px, py, imageWidth, imageHeight, imageScale, imageLeft, imageTop);
+        if (px < imageLeft || py < imageTop || px >= imageLeft + imageWidth
+                || py >= imageTop + imageHeight) return;
+        double sourcePixelX = (px - imageLeft) / imageScale;
+        double sourcePixelY = (py - imageTop) / imageScale;
+        if (sourcePixelX < maze.getLeftBorder() || sourcePixelX >= maze.getRightBorder() + 1.0
+                || sourcePixelY < maze.getTopBorder() || sourcePixelY >= maze.getBottomBorder() + 1.0) {
+            return;
+        }
+        double gridX = (sourcePixelX - maze.getLeftBorder()) / maze.getCellSize();
+        double gridY = (sourcePixelY - maze.getTopBorder()) / maze.getCellSize();
+        int x = (int) gridX;
+        int y = (int) gridY;
+        if (x < 0 || y < 0 || x >= columns || y >= rows) return;
+        int sourceX = (int) sourcePixelX;
+        int sourceY = (int) sourcePixelY;
+        int centerX = maze.getLeftBorder() + x * maze.getCellSize() + maze.getCellSize() / 2;
+        int centerY = maze.getTopBorder() + y * maze.getCellSize() + maze.getCellSize() / 2;
+        int sampledRgb = maze.getBitmap().getRGB(centerX, centerY);
+        int red = (sampledRgb >> 16) & 255;
+        int green = (sampledRgb >> 8) & 255;
+        int blue = sampledRgb & 255;
+        boolean sampledAsWhite = red > 235 && green > 235 && blue > 235;
+        boolean classifiedAsWall = maze.getLogicalMaze()[x][y].isSolidBlock();
+        System.out.printf("[CLICK] maze@%08x logicalMaze@%08x, grid=(sloupec %d, řádek %d), sourcePixel=(%d, %d), cellCenter=(%d, %d), centerRGB=#%06X, isWhite=%s, logical=%s%n",
+                System.identityHashCode(maze), System.identityHashCode(maze.getLogicalMaze()),
+                x, y, sourceX, sourceY, centerX, centerY, sampledRgb & 0x00ffffff,
+                sampledAsWhite, classifiedAsWall ? "ZEĎ" : "CHODBA");
         if (!maze.areValidEnterStates(x, y)) {
             runState.setText("Neplatná pozice: vybrali jste stěnu.");
             return;
@@ -252,30 +287,50 @@ public class MazeGui extends Application {
         g.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
         int columns = maze.getLogicalMaze().length;
         int rows = maze.getLogicalMaze()[0].length;
-        double scale = Math.min(canvas.getWidth() / columns, canvas.getHeight() / rows);
-        double left = (canvas.getWidth() - columns * scale) / 2;
-        double top = (canvas.getHeight() - rows * scale) / 2;
+        if (sourceImage == null) return;
+        double scale = Math.min(canvas.getWidth() / sourceImage.getWidth(),
+                canvas.getHeight() / sourceImage.getHeight());
+        double imageWidth = sourceImage.getWidth() * scale;
+        double imageHeight = sourceImage.getHeight() * scale;
+        double left = (canvas.getWidth() - imageWidth) / 2;
+        double top = (canvas.getHeight() - imageHeight) / 2;
+        g.drawImage(sourceImage, left, top, imageWidth, imageHeight);
         for (int x = 0; x < columns; x++) {
             for (int y = 0; y < rows; y++) {
                 MazeTitle cell = maze.getLogicalMaze()[x][y];
-                Color color = cell.isSolidBlock() ? Color.web("#111827") : Color.web("#f8fafc");
+                Color color = cell.isSolidBlock()
+                        ? Color.web("#111827", .48) : Color.web("#f8fafc", .22);
                 if (resultImage != null) {
                     int ix = maze.getLeftBorder() + x * maze.getCellSize() + maze.getCellSize() / 2;
                     int iy = maze.getTopBorder() + y * maze.getCellSize() + maze.getCellSize() / 2;
                     if (ix < resultImage.getWidth() && iy < resultImage.getHeight()) {
                         int rgb = resultImage.getRGB(ix, iy);
-                        if ((rgb & 0x00ffffff) == 0x000000ff) color = Color.web("#60a5fa");
-                        if ((rgb & 0x00ffffff) == 0x00ff0000) color = Color.web("#ef4444");
+                        if ((rgb & 0x00ffffff) == 0x000000ff) color = Color.web("#60a5fa", .75);
+                        if ((rgb & 0x00ffffff) == 0x00ff0000) color = Color.web("#ef4444", .75);
                     }
                 }
                 if (startX != null && x == startX && y == startY) color = Color.web("#22c55e");
                 if (goalX != null && x == goalX && y == goalY) color = Color.web("#facc15");
                 g.setFill(color);
-                g.fillRect(left + x * scale, top + y * scale, Math.ceil(scale), Math.ceil(scale));
-                g.setStroke(Color.web("#64748b", .22));
-                g.strokeRect(left + x * scale, top + y * scale, scale, scale);
+                double cellLeft = left + (maze.getLeftBorder() + x * maze.getCellSize()) * scale;
+                double cellTop = top + (maze.getTopBorder() + y * maze.getCellSize()) * scale;
+                double cellWidth = Math.min(maze.getCellSize(),
+                        maze.getRightBorder() + 1 - (maze.getLeftBorder() + x * maze.getCellSize())) * scale;
+                double cellHeight = Math.min(maze.getCellSize(),
+                        maze.getBottomBorder() + 1 - (maze.getTopBorder() + y * maze.getCellSize())) * scale;
+                g.fillRect(cellLeft, cellTop, cellWidth, cellHeight);
+                g.setStroke(Color.web("#64748b", .35));
+                g.strokeRect(cellLeft, cellTop, cellWidth, cellHeight);
             }
         }
+    }
+
+    private static Image toFxImage(BufferedImage image) {
+        WritableImage fxImage = new WritableImage(image.getWidth(), image.getHeight());
+        int[] pixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
+        fxImage.getPixelWriter().setPixels(0, 0, image.getWidth(), image.getHeight(),
+                PixelFormat.getIntArgbInstance(), pixels, 0, image.getWidth());
+        return fxImage;
     }
 
     private static Label section(String text) {

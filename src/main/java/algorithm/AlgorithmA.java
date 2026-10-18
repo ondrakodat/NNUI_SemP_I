@@ -67,9 +67,13 @@ public class AlgorithmA {
             if(!openList.contains(aroundState) && !closedList.contains(aroundState) )
                 openList.add(aroundState);
 
-            MazeState forwardState = actualState.moveForward(maze);
-            if(maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition()) && !openList.contains(forwardState) && !closedList.contains(forwardState)){
-                openList.add(forwardState);
+            if (isForwardMoveWithinBounds(actualState)) {
+                MazeState forwardState = actualState.moveForward(maze);
+                if (maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition())
+                        && !openList.contains(forwardState)
+                        && !closedList.contains(forwardState)) {
+                    openList.add(forwardState);
+                }
             }
         }
         if (foundDestination) {
@@ -117,7 +121,28 @@ public class AlgorithmA {
     }
 
     private void prepareEnvironment(){
+        System.out.printf("[PREPARE-BEFORE] maze@%08x logicalMaze@%08x, resource=%s, grid=%dx%d%n",
+                System.identityHashCode(maze),
+                System.identityHashCode(maze.getLogicalMaze()),
+                maze.getResourcePath(), maze.getLogicalMaze().length,
+                maze.getLogicalMaze()[0].length);
         maze.GetMazeFromFile();
+        System.out.printf("[PREPARE-AFTER] maze@%08x logicalMaze@%08x, resource=%s, grid=%dx%d%n",
+                System.identityHashCode(maze),
+                System.identityHashCode(maze.getLogicalMaze()),
+                maze.getResourcePath(), maze.getLogicalMaze().length,
+                maze.getLogicalMaze()[0].length);
+    }
+
+    private boolean isForwardMoveWithinBounds(MazeState state) {
+        int columns = maze.getLogicalMaze().length;
+        int rows = maze.getLogicalMaze()[0].length;
+        return switch (state.getOrientation()) {
+            case NORTH -> state.getYPosition() > 0;
+            case SOUTH -> state.getYPosition() < rows - 1;
+            case WEST -> state.getXPosition() > 0;
+            case EAST -> state.getXPosition() < columns - 1;
+        };
     }
 
     public int calcuteHeuristic(MazeState state){

@@ -115,12 +115,14 @@ public class MazeState {
                 return yPosition - 1;
             }
             else{
+                logBoundaryFailure("Y/NORTH", maze);
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }else{
-            if(yPosition != maze.getLogicalMaze().length){
+            if(yPosition < maze.getLogicalMaze()[0].length - 1){
                 return yPosition + 1;
             }else{
+                logBoundaryFailure("Y/SOUTH", maze);
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }
@@ -131,15 +133,26 @@ public class MazeState {
                 return xPosition - 1;
             }
             else{
+                logBoundaryFailure("X/WEST", maze);
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }else {
             if(xPosition != maze.getLogicalMaze().length){
                 return xPosition + 1;
             }else{
+                logBoundaryFailure("X/EAST", maze);
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }
+    }
+
+    private void logBoundaryFailure(String axisAndDirection, Maze maze) {
+        MazeTitle[][] grid = maze.getLogicalMaze();
+        System.out.printf("[MOVE-BOUNDARY] axis=%s state=(x=%d,y=%d,orientation=%s,cost=%d), grid=%dx%d, maze@%08x, logicalMaze@%08x, resource=%s%n",
+                axisAndDirection, xPosition, yPosition, orientation, totalCost,
+                grid.length, grid[0].length,
+                System.identityHashCode(maze),
+                System.identityHashCode(grid), maze.getResourcePath());
     }
 
 

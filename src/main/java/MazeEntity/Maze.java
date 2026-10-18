@@ -1,6 +1,5 @@
 package MazeEntity;
 
-import algorithm.Sort;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,8 +12,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.List;
+import java.util.Map;
 
 /*
  * This class represents our Maze which we load from directory.
@@ -92,9 +95,9 @@ public class Maze {
 //    }
         public void setupLogicalMaze() {
             cellSize = testFewRows(new int[]{
-                    bitmap.getHeight() / 2,
-                    bitmap.getHeight() / 3,
-                    bitmap.getHeight() / 4
+                    topBorder + (bottomBorder - topBorder) / 2,
+                    topBorder + (bottomBorder - topBorder) / 3,
+                    topBorder + (bottomBorder - topBorder) / 4
             });
 
             if (cellSize <= 0) {
@@ -166,6 +169,12 @@ public class Maze {
         Graphics2D g = result.createGraphics();
         g.drawImage(bitmap, 0, 0, null);
 
+        // Rasterizace logických buněk nesmí přetéct do okolí bludiště,
+        // pokud rozměry detekované oblasti nejsou násobkem cellSize.
+        g.clipRect(leftBorder, topBorder,
+                rightBorder - leftBorder + 1,
+                bottomBorder - topBorder + 1);
+
         // Každou logickou buňku vykreslíme přes původní buňku.
         for (int x = 0; x < logicalMaze.length; x++) {
             for (int y = 0; y < logicalMaze[x].length; y++) {
@@ -190,14 +199,21 @@ public class Maze {
 
 
     private void drawCell(BufferedImage image, int x, int y, Color color) {
+        if (x < 0 || y < 0 || x >= logicalMaze.length
+                || y >= logicalMaze[x].length) {
+            return;
+        }
+
         int startX = leftBorder + x * cellSize;
         int startY = topBorder + y * cellSize;
+        int endX = Math.min(Math.min(startX + cellSize, rightBorder + 1), image.getWidth());
+        int endY = Math.min(Math.min(startY + cellSize, bottomBorder + 1), image.getHeight());
+        int clippedStartX = Math.max(Math.max(startX, leftBorder), 0);
+        int clippedStartY = Math.max(Math.max(startY, topBorder), 0);
 
-        for (int px = startX; px < startX + cellSize; px++) {
-            for (int py = startY; py < startY + cellSize; py++) {
-                if (px < image.getWidth() && py < image.getHeight()) {
-                    image.setRGB(px, py, color.getRGB());
-                }
+        for (int px = clippedStartX; px < endX; px++) {
+            for (int py = clippedStartY; py < endY; py++) {
+                image.setRGB(px, py, color.getRGB());
             }
         }
     }
@@ -215,6 +231,15 @@ public class Maze {
         MazeTitle titleForCheck = logicalMaze[x][y];
 
         if (titleForCheck.isSolidBlock()) {
+            StackTraceElement[] trace = Thread.currentThread().getStackTrace();
+            String caller = trace.length > 2 ? trace[2].toString() : "neznámý";
+            System.out.printf("[VALIDATE-WALL] maze@%08x logicalMaze@%08x cell@%08x, x=%d, y=%d, title=(%d,%d), solid=%s, resource=%s, caller=%s%n",
+                    System.identityHashCode(this),
+                    System.identityHashCode(logicalMaze),
+                    System.identityHashCode(titleForCheck),
+                    x, y, titleForCheck.getXCoordinates(),
+                    titleForCheck.getYCoordinates(),
+                    titleForCheck.isSolidBlock(), resourcePath, caller);
             System.out.println(
                     "Zadaná pozice je zeď. X: " + x + ", Y: " + y
             );
@@ -262,83 +287,42 @@ public class Maze {
     }
 
     public int findCellSize(int rowToTest) {
-        if (rowToTest < 0 || rowToTest >= bitmap.getHeight()) {
+        if (rowToTest < topBorder || rowToTest > bottomBorder
+                || rowToTest >= bitmap.getHeight()) {
             System.out.println("Neplatný řádek: " + rowToTest);
             return 0;
         }
 
-        int widthOfMaze = bitmap.getWidth();
-        //int heightOfMaze = bitmap.getHeight();
-
-        int currentLenght = 1;
-
-        List<Integer> whiteColorLenghts = new ArrayList<>();
-        List<Integer> nonWhiteColorLenghts = new ArrayList<>();
-
-        boolean isCurrentlyWhite = isWhiteOrNot(bitmap.getRGB(0, rowToTest));
-        boolean isFirstPixelWhite = isWhiteOrNot(bitmap.getRGB(0, rowToTest));
-        boolean isLastPixelWhite = isWhiteOrNot(bitmap.getRGB(widthOfMaze - 1, rowToTest));
-
-        for (int i = 1; i < widthOfMaze; i++) {
-            boolean pixelIsWhite = isWhiteOrNot(bitmap.getRGB(i, rowToTest));
-
-            if (pixelIsWhite == isCurrentlyWhite) {
-                currentLenght++;
-            } else {
-                if(isCurrentlyWhite){
-                    whiteColorLenghts.add(currentLenght);
-                }else{
-                    nonWhiteColorLenghts.add(currentLenght);
-                }
-                System.out.println("Actual lenght of color is : " + currentLenght);
-                currentLenght = 1;
-                isCurrentlyWhite = pixelIsWhite;
+        Map<Integer, Integer> runCounts = new HashMap<>();
+        int runStart = leftBorder;
+        boolean current = isWhiteOrNot(bitmap.getRGB(runStart, rowToTest));
+        for (int x = leftBorder + 1; x <= rightBorder + 1; x++) {
+            boolean next = x <= rightBorder
+                    && isWhiteOrNot(bitmap.getRGB(x, rowToTest));
+            if (x > rightBorder || next != current) {
+                runCounts.merge(x - runStart, 1, Integer::sum);
+                runStart = x;
+                current = next;
             }
         }
-        if(isCurrentlyWhite)
-            whiteColorLenghts.add(currentLenght);
-        else
-            nonWhiteColorLenghts.add(currentLenght);
 
-        if (isFirstPixelWhite && isLastPixelWhite) {
-            if(whiteColorLenghts.size() >= 2){
-                whiteColorLenghts.removeFirst();
-                whiteColorLenghts.removeLast();
-            }else
-                whiteColorLenghts.clear();;
-
+        // Ignore 1–3px antialiasing fragments only for rasterized, gray-edged images.
+        boolean hasAntialiasing = false;
+        for (int x = leftBorder; x <= rightBorder && !hasAntialiasing; x++) {
+            int color = bitmap.getRGB(x, rowToTest);
+            int red = (color >> 16) & 255, green = (color >> 8) & 255, blue = color & 255;
+            hasAntialiasing = red == green && green == blue && red > 0 && red < 255;
         }
-
-
-        List<Integer> allLengths = new ArrayList<>();
-        allLengths.addAll(whiteColorLenghts);
-        allLengths.addAll(nonWhiteColorLenghts);
-
-        int[] lenghtsOfDiffColors = allLengths.stream()
-                .mapToInt(Integer::intValue)
-                .toArray();
-
-        Sort.sortFromLowest(lenghtsOfDiffColors);
-
-        Arrays.stream(lenghtsOfDiffColors).forEach(System.out::println);
-
-        int lenghtOfFoundColorLines = lenghtsOfDiffColors.length;
-
         int bestLength = 0;
         int bestCount = 0;
-
-        for (int i = 0; i < lenghtsOfDiffColors.length; i++) {
-            int currentCount = 0;
-
-            for (int j = 0; j < lenghtsOfDiffColors.length; j++) {
-                if (Math.abs(lenghtsOfDiffColors[i] - lenghtsOfDiffColors[j]) <= 1) {
-                    currentCount++;
-                }
-            }
-
-            if (currentCount > bestCount) {
-                bestCount = currentCount;
-                bestLength = lenghtsOfDiffColors[i];
+        for (int candidate : runCounts.keySet()) {
+            if (hasAntialiasing && candidate <= 3) continue;
+            int count = runCounts.entrySet().stream()
+                    .filter(entry -> Math.abs(entry.getKey() - candidate) <= 1)
+                    .mapToInt(Map.Entry::getValue).sum();
+            if (count > bestCount || (count == bestCount && candidate < bestLength)) {
+                bestLength = candidate;
+                bestCount = count;
             }
         }
         System.out.println("Odhad šířky: " + bestLength);
@@ -348,29 +332,21 @@ public class Maze {
     }
 
     public int testFewRows(int[] arrayToTest) {
-        int expectedVal = 0;
-        int validrows = 0;
+        List<Integer> validSizes = new ArrayList<>();
 
         for (int i = 0; i < arrayToTest.length; i++) {
             int cellSize = findCellSize(arrayToTest[i]);
-            System.out.println("Řádek " + arrayToTest[i]
-                    + " - odhad: " + cellSize);
+//            System.out.println("Řádek " + arrayToTest[i]
+//                    + " - odhad: " + cellSize);
 
-            if(cellSize>0){
-                expectedVal += cellSize;
-                validrows++;
-            }
+            if (cellSize > 0) validSizes.add(cellSize);
         }
-        if(validrows == 0){
+        if (validSizes.isEmpty()) {
             System.out.println("0 platných řádků k výpočtu");
             return 0;
         }
-
-        int midlleValue = expectedVal / validrows;
-
-        System.out.println("Expected Value of row coridor width is : " + midlleValue);
-
-        return midlleValue;
+        validSizes.sort(Comparator.naturalOrder());
+        return validSizes.get(validSizes.size() / 2);
     }
 
     private boolean isWhiteOrNot(int color) {
@@ -398,77 +374,62 @@ public class Maze {
     }
 
     public void findBordersOfMaze(){
-        //TODO find line of top width and also bot width with left heigt line and right height line and make intersektor from it and be able to cut the image
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
-
-        topBorder = -1;
-        bottomBorder = -1;
-        leftBorder = -1;
-        rightBorder = -1;
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
-                    topBorder = y;
-                    break;
+        int pixelCount = Math.multiplyExact(width, height);
+        BitSet visited = new BitSet(pixelCount);
+        List<ComponentBounds> components = new ArrayList<>();
+        for (int start = 0; start < pixelCount; start++) {
+            if (visited.get(start)) continue;
+            int startX = start % width, startY = start / width;
+            if (isWhiteOrNot(bitmap.getRGB(startX, startY))) { visited.set(start); continue; }
+            int[] queue = new int[1024];
+            int head = 0, tail = 0;
+            queue[tail++] = start;
+            visited.set(start);
+            int minX = startX, maxX = startX, minY = startY, maxY = startY;
+            while (head < tail) {
+                int index = queue[head++];
+                int x = index % width, y = index / width;
+                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = x + dx, ny = y + dy;
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                    int neighbor = ny * width + nx;
+                    if (visited.get(neighbor)) continue;
+                    visited.set(neighbor);
+                    if (isWhiteOrNot(bitmap.getRGB(nx, ny))) continue;
+                    if (tail == queue.length) queue = Arrays.copyOf(queue, queue.length * 2);
+                    queue[tail++] = neighbor;
                 }
             }
-
-            if (topBorder != -1) {
-                break;
+            components.add(new ComponentBounds(tail, minX, minY, maxX, maxY));
+        }
+        ComponentBounds largest = components.stream()
+                .max(Comparator.comparingInt(component -> component.pixels))
+                .orElseThrow(() -> new IllegalStateException("V obrázku nebyla nalezena oblast bludiště."));
+        leftBorder = largest.minX; rightBorder = largest.maxX;
+        topBorder = largest.minY; bottomBorder = largest.maxY;
+        // Rasterized mazes may have multiple overlapping foreground parts; detached art stays out.
+        for (ComponentBounds component : components) {
+            boolean overlaps = component.maxX >= largest.minX && component.minX <= largest.maxX
+                    && component.maxY >= largest.minY && component.minY <= largest.maxY;
+            if (overlaps) {
+                leftBorder = Math.min(leftBorder, component.minX);
+                rightBorder = Math.max(rightBorder, component.maxX);
+                topBorder = Math.min(topBorder, component.minY);
+                bottomBorder = Math.max(bottomBorder, component.maxY);
             }
         }
-
-        for (int y = height - 1; y >= 0; y--) {
-            for (int x = 0; x < width; x++) {
-                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
-                    bottomBorder = y;
-                    break;
-                }
-            }
-
-            if (bottomBorder != -1) {
-                break;
-            }
-        }
-
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
-                    leftBorder = x;
-                    break;
-                }
-            }
-
-            if (leftBorder != -1) {
-                break;
-            }
-        }
-
-        for (int x = width - 1; x >= 0; x--) {
-            for (int y = 0; y < height; y++) {
-                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
-                    rightBorder = x;
-                    break;
-                }
-            }
-
-            if (rightBorder != -1) {
-                break;
-            }
-        }
-
         System.out.println("Horní hranice: " + topBorder);
         System.out.println("Dolní hranice: " + bottomBorder);
         System.out.println("Levá hranice: " + leftBorder);
         System.out.println("Pravá hranice: " + rightBorder);
-
-
-
     }
 
-
+    private record ComponentBounds(int pixels, int minX, int minY, int maxX, int maxY) {}
     /*
     public void CreateReducedMaze() {
 
