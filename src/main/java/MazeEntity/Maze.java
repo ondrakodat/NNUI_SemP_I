@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.List;
 import java.util.Map;
+import enums.Orientation;
 
 /*
  * This class represents our Maze which we load from directory.
@@ -38,6 +39,10 @@ public class Maze {
     private int topBorder;
     private int bottomBorder;
     private String resourcePath = "/Bludiste.bmp";
+    private int gridOriginX;
+    private int gridOriginY;
+    private boolean corridorCellGrid;
+    private boolean[][][] openTransitions;
 
     // Zachová kompatibilitu s AlgorithmA, které načítá aktuální bludiště bez argumentu.
     public void GetMazeFromFile() {
@@ -94,11 +99,26 @@ public class Maze {
 //        }
 //    }
         public void setupLogicalMaze() {
-            cellSize = testFewRows(new int[]{
+            int sampledRunSize = testFewRows(new int[]{
                     topBorder + (bottomBorder - topBorder) / 2,
                     topBorder + (bottomBorder - topBorder) / 3,
                     topBorder + (bottomBorder - topBorder) / 4
             });
+
+            corridorCellGrid = resourcePath.endsWith("/bludiste_nosorozec.png");
+            openTransitions = null;
+            if (corridorCellGrid) {
+                int[] geometry = detectCorridorGeometry();
+                cellSize = geometry[0];
+                int firstCenterX = leftBorder + geometry[1];
+                int firstCenterY = topBorder + geometry[2];
+                gridOriginX = firstCenterX - cellSize / 2;
+                gridOriginY = firstCenterY - cellSize / 2;
+            } else {
+                cellSize = sampledRunSize;
+                gridOriginX = leftBorder;
+                gridOriginY = topBorder;
+            }
 
             if (cellSize <= 0) {
                 throw new IllegalStateException(
@@ -106,19 +126,28 @@ public class Maze {
                 );
             }
 
-            int mazeWidth = rightBorder - leftBorder + 1;
-            int mazeHeight = bottomBorder - topBorder + 1;
-
-            int columns = mazeWidth / cellSize;
-            int rows = mazeHeight / cellSize;
+            int columns;
+            int rows;
+            if (corridorCellGrid) {
+                columns = (rightBorder - cellSize / 2 - (gridOriginX + cellSize / 2)) / cellSize + 1;
+                rows = (bottomBorder - cellSize / 2 - (gridOriginY + cellSize / 2)) / cellSize + 1;
+            } else {
+                int mazeWidth = rightBorder - leftBorder + 1;
+                int mazeHeight = bottomBorder - topBorder + 1;
+                columns = mazeWidth / cellSize;
+                rows = mazeHeight / cellSize;
+            }
+            if (columns <= 0 || rows <= 0) {
+                throw new IllegalStateException("Odvozená logická mřížka nemá žádná pole.");
+            }
 
             logicalMaze = new MazeTitle[columns][rows];
 
             for (int x = 0; x < columns; x++) {
                 for (int y = 0; y < rows; y++) {
 
-                    int pixelX = leftBorder + x * cellSize + cellSize / 2;
-                    int pixelY = topBorder + y * cellSize + cellSize / 2;
+                    int pixelX = gridOriginX + x * cellSize + cellSize / 2;
+                    int pixelY = gridOriginY + y * cellSize + cellSize / 2;
 
                     int color = bitmap.getRGB(pixelX, pixelY);
 
@@ -148,8 +177,10 @@ public class Maze {
             System.out.println("Logické bludiště: "
                     + columns + " × " + rows);
 
-            System.out.println("Zbytek šířky: " + mazeWidth % cellSize);
-            System.out.println("Zbytek výšky: " + mazeHeight % cellSize);
+            System.out.println("Počátek logické mřížky: " + gridOriginX + ", " + gridOriginY);
+            System.out.println("Zbytek šířky: " + (rightBorder - leftBorder + 1) % cellSize);
+            System.out.println("Zbytek výšky: " + (bottomBorder - topBorder + 1) % cellSize);
+            if (corridorCellGrid) buildOpenTransitions();
         }
 
 
@@ -168,6 +199,13 @@ public class Maze {
         // Zachováme původní obrázek včetně bílého okolí.
         Graphics2D g = result.createGraphics();
         g.drawImage(bitmap, 0, 0, null);
+
+        // In the corridor-center representation the walls are transitions
+        // between cells, so repainting each logical cell would erase them.
+        if (corridorCellGrid) {
+            g.dispose();
+            return result;
+        }
 
         // Rasterizace logických buněk nesmí přetéct do okolí bludiště,
         // pokud rozměry detekované oblasti nejsou násobkem cellSize.
@@ -204,8 +242,20 @@ public class Maze {
             return;
         }
 
-        int startX = leftBorder + x * cellSize;
-        int startY = topBorder + y * cellSize;
+        int startX = gridOriginX + x * cellSize;
+        int startY = gridOriginY + y * cellSize;
+        if (corridorCellGrid) {
+            int centerX = startX + cellSize / 2;
+            int centerY = startY + cellSize / 2;
+            int diameter = Math.max(3, cellSize / 4);
+            int markerX = centerX - diameter / 2;
+            int markerY = centerY - diameter / 2;
+            Graphics2D g = image.createGraphics();
+            g.setColor(color);
+            g.fillOval(markerX, markerY, diameter, diameter);
+            g.dispose();
+            return;
+        }
         int endX = Math.min(Math.min(startX + cellSize, rightBorder + 1), image.getWidth());
         int endY = Math.min(Math.min(startY + cellSize, bottomBorder + 1), image.getHeight());
         int clippedStartX = Math.max(Math.max(startX, leftBorder), 0);
@@ -247,6 +297,194 @@ public class Maze {
         }
 
         return true;
+    }
+
+    public boolean isTransitionOpen(int x, int y, Orientation direction) {
+        if (openTransitions == null) return true;
+        if (x < 0 || y < 0 || x >= openTransitions.length || y >= openTransitions[x].length) {
+            return false;
+        }
+        return openTransitions[x][y][direction.ordinal()];
+    }
+
+    public boolean isPassableImagePixel(int x, int y) {
+        return x >= 0 && y >= 0 && x < bitmap.getWidth() && y < bitmap.getHeight()
+                && isWhiteOrNot(bitmap.getRGB(x, y));
+    }
+
+    private int[] detectCorridorGeometry() {
+        int wallX = dominantRunWidth(true, false);
+        int passageX = dominantRunWidth(true, true);
+        int wallY = dominantRunWidth(false, false);
+        int passageY = dominantRunWidth(false, true);
+        int spacingX = dominantWallSpacing(true, wallX, wallX + passageX);
+        int spacingY = dominantWallSpacing(false, wallY, wallY + passageY);
+        if (spacingX <= 0 || spacingY <= 0
+                || Math.abs(spacingX - spacingY) > Math.max(2, Math.round(Math.min(spacingX, spacingY) * .03f))) {
+            throw new IllegalStateException("Rozteč průchodů není v obou osách jednoznačně pravidelná.");
+        }
+        int spacing = Math.round((spacingX + spacingY) / 2.0f);
+        int phaseX = findGridPhase(true, spacing);
+        int phaseY = findGridPhase(false, spacing);
+        System.out.printf("[CORRIDOR-GEOMETRY] wall=%d/%d px, passage=%d/%d px, pitch=%d/%d px, phase=%d/%d px%n",
+                wallX, wallY, passageX, passageY, spacingX, spacingY, phaseX, phaseY);
+        return new int[]{spacing, phaseX, phaseY};
+    }
+
+    private int dominantRunWidth(boolean alongX, boolean whiteRuns) {
+        Map<Integer, Integer> widths = new HashMap<>();
+        int fixedStart = alongX ? topBorder : leftBorder;
+        int fixedEnd = alongX ? bottomBorder : rightBorder;
+        int scanStart = alongX ? leftBorder : topBorder;
+        int scanEnd = alongX ? rightBorder : bottomBorder;
+        int scanStep = Math.max(1, (fixedEnd - fixedStart + 1) / 400);
+        for (int fixed = fixedStart; fixed <= fixedEnd; fixed += scanStep) {
+            int runStart = scanStart;
+            boolean current = isWhiteOrNot(pixelAt(alongX, runStart, fixed));
+            for (int position = scanStart + 1; position <= scanEnd + 1; position++) {
+                boolean next = position <= scanEnd && isWhiteOrNot(pixelAt(alongX, position, fixed));
+                if (position > scanEnd || next != current) {
+                    if (current == whiteRuns && position - runStart >= 5) {
+                        widths.merge(position - runStart, 1, Integer::sum);
+                    }
+                    runStart = position;
+                    current = next;
+                }
+            }
+        }
+        return modalWidth(widths);
+    }
+
+    private int dominantWallSpacing(boolean alongX, int wallWidth, int expectedPitch) {
+        if (wallWidth <= 0 || expectedPitch <= wallWidth) return 0;
+        Map<Integer, Integer> gaps = new HashMap<>();
+        int fixedStart = alongX ? topBorder : leftBorder;
+        int fixedEnd = alongX ? bottomBorder : rightBorder;
+        int scanStart = alongX ? leftBorder : topBorder;
+        int scanEnd = alongX ? rightBorder : bottomBorder;
+        int scanStep = Math.max(1, (fixedEnd - fixedStart + 1) / 400);
+        int widthTolerance = Math.max(2, wallWidth / 10);
+        for (int fixed = fixedStart; fixed <= fixedEnd; fixed += scanStep) {
+            int runStart = scanStart;
+            boolean current = isWhiteOrNot(pixelAt(alongX, runStart, fixed));
+            int previousWallCenter = -1;
+            for (int position = scanStart + 1; position <= scanEnd + 1; position++) {
+                boolean next = position <= scanEnd && isWhiteOrNot(pixelAt(alongX, position, fixed));
+                if (position > scanEnd || next != current) {
+                    int runWidth = position - runStart;
+                    if (!current && Math.abs(runWidth - wallWidth) <= widthTolerance) {
+                        int center = runStart + (runWidth - 1) / 2;
+                        if (previousWallCenter >= 0) {
+                            int gap = center - previousWallCenter;
+                            if (gap >= expectedPitch * .7 && gap <= expectedPitch * 1.3) {
+                                gaps.merge(gap, 1, Integer::sum);
+                            }
+                        }
+                        previousWallCenter = center;
+                    }
+                    runStart = position;
+                    current = next;
+                }
+            }
+        }
+        return modalWidth(gaps);
+    }
+
+    private int modalWidth(Map<Integer, Integer> values) {
+        int bestWidth = 0;
+        int bestCount = 0;
+        for (int candidate : values.keySet()) {
+            int count = 0;
+            for (int delta = -2; delta <= 2; delta++) count += values.getOrDefault(candidate + delta, 0);
+            if (count > bestCount) {
+                bestWidth = candidate;
+                bestCount = count;
+            }
+        }
+        return bestWidth;
+    }
+
+    private int findGridPhase(boolean alongX, int pitch) {
+        int start = alongX ? leftBorder : topBorder;
+        int end = alongX ? rightBorder : bottomBorder;
+        int otherStart = alongX ? topBorder : leftBorder;
+        int otherEnd = alongX ? bottomBorder : rightBorder;
+        int otherStep = Math.max(1, pitch / 15);
+        int bestPhase = -1;
+        double bestScore = -1;
+        for (int phase = pitch / 2; phase < pitch; phase++) {
+            int firstCenter = start + phase;
+            if (firstCenter - pitch / 2 < start || firstCenter + pitch / 2 > end) continue;
+            long clearanceSum = 0;
+            long samples = 0;
+            for (int center = firstCenter; center + pitch / 2 <= end; center += pitch) {
+                for (int other = otherStart; other <= otherEnd; other += otherStep) {
+                    int x = alongX ? center : other;
+                    int y = alongX ? other : center;
+                    samples++;
+                    if (!isWhiteOrNot(bitmap.getRGB(x, y))) continue;
+                    for (int sign : new int[]{-1, 1}) {
+                        for (int distance = 1; distance <= pitch / 2; distance++) {
+                            int sampleX = alongX ? x + sign * distance : x;
+                            int sampleY = alongX ? y : y + sign * distance;
+                            if (!isWhiteOrNot(bitmap.getRGB(sampleX, sampleY))) break;
+                            clearanceSum++;
+                        }
+                    }
+                }
+            }
+            double score = samples == 0 ? 0 : (double) clearanceSum / samples;
+            if (score > bestScore) {
+                bestScore = score;
+                bestPhase = phase;
+            }
+        }
+        if (bestPhase < 0) throw new IllegalStateException("Nepodařilo se určit středy průchozích polí.");
+        return bestPhase;
+    }
+
+    private void buildOpenTransitions() {
+        int columns = logicalMaze.length;
+        int rows = logicalMaze[0].length;
+        openTransitions = new boolean[columns][rows][Orientation.values().length];
+        for (int x = 0; x < columns; x++) {
+            for (int y = 0; y < rows; y++) {
+                if (x + 1 < columns) {
+                    setTransitionPair(x, y, Orientation.EAST, x + 1, y, Orientation.WEST);
+                }
+                if (y + 1 < rows) {
+                    setTransitionPair(x, y, Orientation.SOUTH, x, y + 1, Orientation.NORTH);
+                }
+            }
+        }
+    }
+
+    private void setTransitionPair(int x, int y, Orientation direction,
+                                   int nextX, int nextY, Orientation opposite) {
+        int startX = gridOriginX + x * cellSize + cellSize / 2;
+        int startY = gridOriginY + y * cellSize + cellSize / 2;
+        int endX = gridOriginX + nextX * cellSize + cellSize / 2;
+        int endY = gridOriginY + nextY * cellSize + cellSize / 2;
+        int white = 0;
+        int total = 0;
+        int length = Math.max(Math.abs(endX - startX), Math.abs(endY - startY));
+        for (int step = 1; step < length; step++) {
+            int px = startX + (endX - startX) * step / length;
+            int py = startY + (endY - startY) * step / length;
+            total++;
+            if (isWhiteOrNot(bitmap.getRGB(px, py))) white++;
+        }
+        // Open passages have almost entirely white cross-sections; a wall occupies
+        // roughly one third of a pitch, leaving a wide gap between both classes.
+        boolean open = !logicalMaze[x][y].isSolidBlock()
+                && !logicalMaze[nextX][nextY].isSolidBlock()
+                && total > 0 && (double) white / total >= .9;
+        openTransitions[x][y][direction.ordinal()] = open;
+        openTransitions[nextX][nextY][opposite.ordinal()] = open;
+    }
+
+    private int pixelAt(boolean alongX, int position, int fixed) {
+        return bitmap.getRGB(alongX ? position : fixed, alongX ? fixed : position);
     }
 
 

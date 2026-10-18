@@ -203,15 +203,15 @@ public class MazeGui extends Application {
                 || sourcePixelY < maze.getTopBorder() || sourcePixelY >= maze.getBottomBorder() + 1.0) {
             return;
         }
-        double gridX = (sourcePixelX - maze.getLeftBorder()) / maze.getCellSize();
-        double gridY = (sourcePixelY - maze.getTopBorder()) / maze.getCellSize();
+        double gridX = (sourcePixelX - maze.getGridOriginX()) / maze.getCellSize();
+        double gridY = (sourcePixelY - maze.getGridOriginY()) / maze.getCellSize();
         int x = (int) gridX;
         int y = (int) gridY;
         if (x < 0 || y < 0 || x >= columns || y >= rows) return;
         int sourceX = (int) sourcePixelX;
         int sourceY = (int) sourcePixelY;
-        int centerX = maze.getLeftBorder() + x * maze.getCellSize() + maze.getCellSize() / 2;
-        int centerY = maze.getTopBorder() + y * maze.getCellSize() + maze.getCellSize() / 2;
+        int centerX = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2;
+        int centerY = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2;
         int sampledRgb = maze.getBitmap().getRGB(centerX, centerY);
         int red = (sampledRgb >> 16) & 255;
         int green = (sampledRgb >> 8) & 255;
@@ -222,6 +222,10 @@ public class MazeGui extends Application {
                 System.identityHashCode(maze), System.identityHashCode(maze.getLogicalMaze()),
                 x, y, sourceX, sourceY, centerX, centerY, sampledRgb & 0x00ffffff,
                 sampledAsWhite, classifiedAsWall ? "ZEĎ" : "CHODBA");
+        if (maze.isCorridorCellGrid() && !maze.isPassableImagePixel(sourceX, sourceY)) {
+            runState.setText("Klikněte do světlé průchozí části chodby.");
+            return;
+        }
         if (!maze.areValidEnterStates(x, y)) {
             runState.setText("Neplatná pozice: vybrali jste stěnu.");
             return;
@@ -301,8 +305,8 @@ public class MazeGui extends Application {
                 Color color = cell.isSolidBlock()
                         ? Color.web("#111827", .48) : Color.web("#f8fafc", .22);
                 if (resultImage != null) {
-                    int ix = maze.getLeftBorder() + x * maze.getCellSize() + maze.getCellSize() / 2;
-                    int iy = maze.getTopBorder() + y * maze.getCellSize() + maze.getCellSize() / 2;
+                    int ix = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2;
+                    int iy = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2;
                     if (ix < resultImage.getWidth() && iy < resultImage.getHeight()) {
                         int rgb = resultImage.getRGB(ix, iy);
                         if ((rgb & 0x00ffffff) == 0x000000ff) color = Color.web("#60a5fa", .75);
@@ -312,13 +316,29 @@ public class MazeGui extends Application {
                 if (startX != null && x == startX && y == startY) color = Color.web("#22c55e");
                 if (goalX != null && x == goalX && y == goalY) color = Color.web("#facc15");
                 g.setFill(color);
-                double cellLeft = left + (maze.getLeftBorder() + x * maze.getCellSize()) * scale;
-                double cellTop = top + (maze.getTopBorder() + y * maze.getCellSize()) * scale;
-                double cellWidth = Math.min(maze.getCellSize(),
-                        maze.getRightBorder() + 1 - (maze.getLeftBorder() + x * maze.getCellSize())) * scale;
-                double cellHeight = Math.min(maze.getCellSize(),
-                        maze.getBottomBorder() + 1 - (maze.getTopBorder() + y * maze.getCellSize())) * scale;
-                g.fillRect(cellLeft, cellTop, cellWidth, cellHeight);
+                int cellPixelLeft = maze.getGridOriginX() + x * maze.getCellSize();
+                int cellPixelTop = maze.getGridOriginY() + y * maze.getCellSize();
+                int visibleLeft = Math.max(cellPixelLeft, maze.getLeftBorder());
+                int visibleTop = Math.max(cellPixelTop, maze.getTopBorder());
+                int visibleRight = Math.min(cellPixelLeft + maze.getCellSize(), maze.getRightBorder() + 1);
+                int visibleBottom = Math.min(cellPixelTop + maze.getCellSize(), maze.getBottomBorder() + 1);
+                double cellLeft = left + visibleLeft * scale;
+                double cellTop = top + visibleTop * scale;
+                double cellWidth = (visibleRight - visibleLeft) * scale;
+                double cellHeight = (visibleBottom - visibleTop) * scale;
+                if (!maze.isCorridorCellGrid()) {
+                    g.fillRect(cellLeft, cellTop, cellWidth, cellHeight);
+                } else if ((startX != null && x == startX && y == startY)
+                        || (goalX != null && x == goalX && y == goalY)
+                        || (resultImage != null && (color.equals(Color.web("#60a5fa", .75))
+                        || color.equals(Color.web("#ef4444", .75))))) {
+                    double diameter = maze.getCellSize() * .24 * scale;
+                    double markerX = left + (maze.getGridOriginX() + x * maze.getCellSize()
+                            + maze.getCellSize() / 2.0) * scale - diameter / 2;
+                    double markerY = top + (maze.getGridOriginY() + y * maze.getCellSize()
+                            + maze.getCellSize() / 2.0) * scale - diameter / 2;
+                    g.fillOval(markerX, markerY, diameter, diameter);
+                }
                 g.setStroke(Color.web("#64748b", .35));
                 g.strokeRect(cellLeft, cellTop, cellWidth, cellHeight);
             }
