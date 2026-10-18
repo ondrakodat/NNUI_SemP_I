@@ -14,7 +14,7 @@ public class Main {
     // Původní konzolový vstup ponechán pro spuštění bez GUI.
     public static void runConsole() {
         Maze maze = new Maze();
-        maze.GetMazeFromFile("");
+        maze.GetMazeFromFile("/Bludiste.bmp");
         maze.setupLogicalMaze();
         BufferedImage imageOfMaze = maze.createPhysicalMazeFromLogicalState();
         try {

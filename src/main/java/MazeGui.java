@@ -17,11 +17,12 @@ import javafx.stage.Stage;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.Set;
+import java.util.List;
 
 public class MazeGui extends Application {
     private final Maze maze = new Maze();
     private Canvas canvas;
+    private ChoiceBox<MazeOption> imageChoice;
     private ChoiceBox<String> clickMode;
     private ChoiceBox<Orientation> orientationChoice;
     private Slider speed;
@@ -29,11 +30,12 @@ public class MazeGui extends Application {
     private Integer startX, startY, goalX, goalY;
     private BufferedImage resultImage;
     private boolean running;
+    private String selectedMazePath = "/Bludiste.bmp";
 
     @Override
     public void start(Stage stage) {
         try {
-            maze.GetMazeFromFile();
+            maze.GetMazeFromFile(selectedMazePath);
         } catch (RuntimeException e) {
             showError("Bludiště se nepodařilo načíst", e.getMessage());
             return;
@@ -70,11 +72,20 @@ public class MazeGui extends Application {
         Label subtitle = new Label("Semestrální práce · NNUI1");
         subtitle.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
 
-        ChoiceBox<String> imageChoice = new ChoiceBox<>();
-        imageChoice.getItems().add("Bludiste.bmp (načtené logikou)");
+        imageChoice = new ChoiceBox<>();
+        imageChoice.getItems().setAll(List.of(
+                new MazeOption("Bludiste.bmp", "/Bludiste.bmp"),
+                new MazeOption("Bludiste_2.bmp", "/Bludiste_2.bmp"),
+                new MazeOption("Bludiste_barevne.png", "/Bludiste_barevne.png"),
+                new MazeOption("bludiste_nosorozec.png", "/bludiste_nosorozec.png")
+        ));
         imageChoice.setValue(imageChoice.getItems().getFirst());
         imageChoice.setMaxWidth(Double.MAX_VALUE);
-        Label imageHint = hint("Ostatní obrázky jsou v resources, načítací metoda Maze ale zatím používá jen Bludiste.bmp.");
+        imageChoice.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.resourcePath().equals(selectedMazePath)) {
+                loadMaze(newValue);
+            }
+        });
 
         ChoiceBox<String> algorithmChoice = new ChoiceBox<>();
         algorithmChoice.getItems().add("A*");
@@ -108,7 +119,7 @@ public class MazeGui extends Application {
         pause.setDisable(true);
         stop.setDisable(true);
         run.setOnAction(e -> runSearch());
-        newSearch.setOnAction(e -> runSearch());
+        newSearch.setOnAction(e -> resetSearch());
         stop.setOnAction(e -> { resultImage = null; runState.setText("Výsledek vizualizace vymazán"); drawMaze(); });
         pause.setOnAction(e -> {});
 
@@ -117,7 +128,7 @@ public class MazeGui extends Application {
         Label limitation = hint("Přerušení, pauza a statistiky nejsou dostupné bez změny algoritmu. Běh probíhá na pozadí, aby GUI zůstalo responzivní.");
 
         VBox box = new VBox(9,
-                title, subtitle, section("BLUDIŠTĚ"), imageChoice, imageHint,
+                title, subtitle, section("BLUDIŠTĚ"), imageChoice,
                 section("ALGORITMUS"), algorithmChoice,
                 section("VSTUPNÍ BODY"), clickMode, startLabel, goalLabel,
                 section("ORIENTACE"), orientationChoice, orientationHint,
@@ -129,6 +140,40 @@ public class MazeGui extends Application {
         box.setMinWidth(300);
         box.setStyle("-fx-background-color: #111c2e; -fx-background-radius: 12;");
         return box;
+    }
+
+    private void loadMaze(MazeOption option) {
+        String previousPath = selectedMazePath;
+        try {
+            maze.GetMazeFromFile(option.resourcePath());
+            selectedMazePath = option.resourcePath();
+            resetSearch();
+            drawMaze();
+        } catch (RuntimeException e) {
+            imageChoice.getItems().stream()
+                    .filter(item -> item.resourcePath().equals(previousPath))
+                    .findFirst()
+                    .ifPresent(item -> imageChoice.setValue(item));
+            showError("Bludiště se nepodařilo načíst", e.getMessage());
+        }
+    }
+
+    private void resetSearch() {
+        if (running) {
+            runState.setText("Hledání právě probíhá. Počkejte na jeho dokončení.");
+            return;
+        }
+        resultImage = null;
+        startX = null;
+        startY = null;
+        goalX = null;
+        goalY = null;
+        startLabel.setText("Start: nenastaven");
+        goalLabel.setText("Cíl: nenastaven");
+        clickMode.setValue("Nastavit start");
+        runState.setText("Připraveno · nejprve vyberte start, potom cíl");
+        details.setText("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
+        drawMaze();
     }
 
     private void setPoint(double px, double py) {
@@ -169,6 +214,9 @@ public class MazeGui extends Application {
             return;
         }
         running = true;
+        imageChoice.setDisable(true);
+        resultImage = null;
+        drawMaze();
         runState.setText("Běží A*…");
         details.setText("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
         Thread worker = new Thread(() -> {
@@ -179,12 +227,14 @@ public class MazeGui extends Application {
                 Platform.runLater(() -> {
                     resultImage = loaded;
                     running = false;
+                    imageChoice.setDisable(false);
                     runState.setText("Výpočet dokončen. Algoritmus nevrací informaci o nalezení cesty do GUI.");
                     drawMaze();
                 });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     running = false;
+                    imageChoice.setDisable(false);
                     runState.setText("Chyba výpočtu: " + ex.getMessage());
                     resultImage = null;
                     drawMaze();
@@ -253,6 +303,10 @@ public class MazeGui extends Application {
     private static void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
         alert.setTitle(title); alert.setHeaderText(title); alert.showAndWait();
+    }
+    private record MazeOption(String displayName, String resourcePath) {
+        @Override
+        public String toString() { return displayName; }
     }
     public static void main(String[] args) { launch(args); }
 }

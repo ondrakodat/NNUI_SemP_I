@@ -34,6 +34,12 @@ public class Maze {
     private int rightBorder;
     private int topBorder;
     private int bottomBorder;
+    private String resourcePath = "/Bludiste.bmp";
+
+    // Zachová kompatibilitu s AlgorithmA, které načítá aktuální bludiště bez argumentu.
+    public void GetMazeFromFile() {
+        GetMazeFromFile(resourcePath);
+    }
 
     public void GetMazeFromFile(String path) {
         InputStream input = getClass().getResourceAsStream(path);
@@ -50,6 +56,7 @@ public class Maze {
         if (bitmap == null) {
             throw new RuntimeException("File could not be read!");
         }
+        resourcePath = path;
         findBordersOfMaze();
         setupLogicalMaze();
     }
