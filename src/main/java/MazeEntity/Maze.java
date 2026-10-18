@@ -11,7 +11,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Set;
@@ -151,39 +150,43 @@ public class Maze {
         //int heightOfMaze = bitmap.getHeight();
 
         int currentLenght = 1;
-        int previouisColor = 0;
 
-        List<Integer> lenghtOFDifferentColor = new ArrayList<>();
-        int swappedColors = 0;
+        List<Integer> whiteColorLenghts = new ArrayList<>();
+        List<Integer> nonWhiteColorLenghts = new ArrayList<>();
+
+        boolean isCurrentlyWhite = isWhiteOrNot(bitmap.getRGB(0, rowToTest));
 
         for (int i = 1; i < widthOfMaze; i++) {
-            previouisColor = bitmap.getRGB(i - 1, rowToTest);
-            if (isSameColor(bitmap.getRGB(i, rowToTest), previouisColor)) {
+            boolean pixelIsWhite = isWhiteOrNot(bitmap.getRGB(i, rowToTest));
+
+            if (pixelIsWhite == isCurrentlyWhite) {
                 currentLenght++;
             } else {
-                lenghtOFDifferentColor.add(currentLenght);
+                if(isCurrentlyWhite){
+                    whiteColorLenghts.add(currentLenght);
+                }else{
+                    nonWhiteColorLenghts.add(currentLenght);
+                }
                 System.out.println("Actual lenght of color is : " + currentLenght);
-                swappedColors++;
                 currentLenght = 1;
+                isCurrentlyWhite = pixelIsWhite;
             }
         }
-        lenghtOFDifferentColor.add(currentLenght);
-        swappedColors++;
+        if(isCurrentlyWhite)
+            whiteColorLenghts.add(currentLenght);
+        else
+            nonWhiteColorLenghts.add(currentLenght);
 
-        if (lenghtOFDifferentColor.size() < 3) {
+        if (whiteColorLenghts.size() < 3) {
             return 0;
         }
 
-        lenghtOFDifferentColor.removeFirst();
-        lenghtOFDifferentColor.removeLast();
+        whiteColorLenghts.removeFirst();
+        whiteColorLenghts.removeLast();
 
-        int[] lenghtsOfDiffColors = lenghtOFDifferentColor.stream().mapToInt(Integer::intValue).toArray();
-
-        swappedColors = swappedColors - 2;
+        int[] lenghtsOfDiffColors = whiteColorLenghts.stream().mapToInt(Integer::intValue).toArray();
 
         Sort.sortFromLowest(lenghtsOfDiffColors);
-
-        System.out.println(swappedColors + "S timto se bude pocitat");
 
         Arrays.stream(lenghtsOfDiffColors).forEach(System.out::println);
 
@@ -238,19 +241,12 @@ public class Maze {
         return midlleValue;
     }
 
-    private boolean isSameColor(int firstColor, int secondColor) {
-        int red1 = (firstColor >> 16) & 255;
-        int green1 = (firstColor >> 8) & 255;
-        int blue1 = firstColor & 255;
+    private boolean isWhiteOrNot(int color) {
+        int red = (color >> 16) & 255;
+        int green = (color >> 8) & 255;
+        int blue = color & 255;
 
-        int red2 = (secondColor >> 16) & 255;
-        int green2 = (secondColor >> 8) & 255;
-        int blue2 = secondColor & 255;
-
-        boolean firstIsWhite = red1 > 235 && green1 > 235 && blue1 > 235;
-        boolean secondIsWhite = red2 > 235 && green2 > 235 && blue2 > 235;
-
-        return firstIsWhite == secondIsWhite;
+        return red > 235 && green > 235 && blue > 235;
     }
 
     public void CreateNewLogicalMazeAfterTestingRowsLenght(){
@@ -271,6 +267,8 @@ public class Maze {
 
     public void findBordersOfMaze(){
         //TODO find line of top width and also bot width with left heigt line and right height line and make intersektor from it and be able to cut the image
+
+
 
     }
 
