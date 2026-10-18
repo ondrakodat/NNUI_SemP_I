@@ -155,6 +155,8 @@ public class Maze {
         List<Integer> nonWhiteColorLenghts = new ArrayList<>();
 
         boolean isCurrentlyWhite = isWhiteOrNot(bitmap.getRGB(0, rowToTest));
+        boolean isFirstPixelWhite = isWhiteOrNot(bitmap.getRGB(0, rowToTest));
+        boolean isLastPixelWhite = isWhiteOrNot(bitmap.getRGB(widthOfMaze - 1, rowToTest));
 
         for (int i = 1; i < widthOfMaze; i++) {
             boolean pixelIsWhite = isWhiteOrNot(bitmap.getRGB(i, rowToTest));
@@ -177,14 +179,23 @@ public class Maze {
         else
             nonWhiteColorLenghts.add(currentLenght);
 
-        if (whiteColorLenghts.size() < 3) {
-            return 0;
+        if (isFirstPixelWhite && isLastPixelWhite) {
+            if(whiteColorLenghts.size() >= 2){
+                whiteColorLenghts.removeFirst();
+                whiteColorLenghts.removeLast();
+            }else
+                whiteColorLenghts.clear();;
+
         }
 
-        whiteColorLenghts.removeFirst();
-        whiteColorLenghts.removeLast();
 
-        int[] lenghtsOfDiffColors = whiteColorLenghts.stream().mapToInt(Integer::intValue).toArray();
+        List<Integer> allLengths = new ArrayList<>();
+        allLengths.addAll(whiteColorLenghts);
+        allLengths.addAll(nonWhiteColorLenghts);
+
+        int[] lenghtsOfDiffColors = allLengths.stream()
+                .mapToInt(Integer::intValue)
+                .toArray();
 
         Sort.sortFromLowest(lenghtsOfDiffColors);
 
@@ -265,11 +276,80 @@ public class Maze {
         System.out.printf("New maze widht : " + newWidth);
     }
 
-    public void findBordersOfMaze(){
+    public BufferedImage findBordersOfMaze(){
         //TODO find line of top width and also bot width with left heigt line and right height line and make intersektor from it and be able to cut the image
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
 
+        int topBorder = -1;
+        int bottomBorder = -1;
+        int leftBorder = -1;
+        int rightBorder = -1;
 
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
+                    topBorder = y;
+                    break;
+                }
+            }
 
+            if (topBorder != -1) {
+                break;
+            }
+        }
+
+        for (int y = height - 1; y >= 0; y--) {
+            for (int x = 0; x < width; x++) {
+                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
+                    bottomBorder = y;
+                    break;
+                }
+            }
+
+            if (bottomBorder != -1) {
+                break;
+            }
+        }
+
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
+                    leftBorder = x;
+                    break;
+                }
+            }
+
+            if (leftBorder != -1) {
+                break;
+            }
+        }
+
+        for (int x = width - 1; x >= 0; x--) {
+            for (int y = 0; y < height; y++) {
+                if (!isWhiteOrNot(bitmap.getRGB(x, y))) {
+                    rightBorder = x;
+                    break;
+                }
+            }
+
+            if (rightBorder != -1) {
+                break;
+            }
+        }
+        System.out.println("Horní hranice: " + topBorder);
+        System.out.println("Dolní hranice: " + bottomBorder);
+        System.out.println("Levá hranice: " + leftBorder);
+        System.out.println("Pravá hranice: " + rightBorder);
+
+        BufferedImage mazeWithDrawedBorders = bitmap.getSubimage(
+                leftBorder,
+                topBorder,
+                rightBorder - leftBorder + 1,
+                bottomBorder - topBorder + 1
+        );
+
+        return mazeWithDrawedBorders;
     }
 
 
