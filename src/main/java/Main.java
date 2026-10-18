@@ -20,6 +20,14 @@ public class Main {
             throw new RuntimeException(e);
         }
 
+        BufferedImage croppedMaze = maze.findBordersOfMaze();
+
+        try {
+            ImageIO.write(croppedMaze, "bmp", new File("Bludiste-oriznute.bmp"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        maze.CreateReducedMaze();
         System.out.println("Cesta ulozeneho bludiste : " + new File("Bludiste-output.bmp").getAbsolutePath());
 
         AlgorithmA alg = new AlgorithmA(maze);

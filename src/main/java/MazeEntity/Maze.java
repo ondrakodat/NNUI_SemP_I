@@ -28,6 +28,7 @@ import java.util.List;
 public class Maze {
     private BufferedImage bitmap;
     private MazeTitle[][] logicalMaze;
+    private boolean isCropped = false;
 
     public void GetMazeFromFile() {
         InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
@@ -114,6 +115,16 @@ public class Maze {
             return false;
         } else
             return true;
+    }
+
+    public void cropMaze() {
+        if (isCropped) {
+            return;
+        }
+
+        bitmap = findBordersOfMaze();
+        setupLogicalMaze();
+        isCropped = true;
     }
 
     public BufferedImage drawExploredArea(List<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState) {
@@ -264,7 +275,7 @@ public class Maze {
         int mazeHeight = bitmap.getHeight();
         int mazeWidth = bitmap.getWidth();
 
-        int expectedWidthOfOneCoridor = testFewRows(new int[]{2, 5, 6, 10, 15, 20, 100, 200, 250, 230, 240, 220, 150, 130});
+        int expectedWidthOfOneCoridor = testFewRows(new int[]{mazeHeight/2, mazeHeight/3, mazeHeight/4, (int)(mazeHeight/4.5), (int)(mazeHeight/1.5), (int)(mazeHeight/1.6)});
 
         System.out.println("Original maze height : " + mazeHeight);
         System.out.println("Original maze width : " + mazeWidth);
@@ -337,6 +348,9 @@ public class Maze {
                 break;
             }
         }
+        topBorder++;
+        bottomBorder--;
+
         System.out.println("Horní hranice: " + topBorder);
         System.out.println("Dolní hranice: " + bottomBorder);
         System.out.println("Levá hranice: " + leftBorder);
@@ -350,6 +364,84 @@ public class Maze {
         );
 
         return mazeWithDrawedBorders;
+    }
+
+
+
+    public void CreateReducedMaze() {
+
+        cropMaze();
+
+        int mazeHeight = bitmap.getHeight();
+        int mazeWidth = bitmap.getWidth();
+
+        int cellSize = testFewRows(new int[]{
+                mazeHeight / 2,
+                mazeHeight / 3,
+                mazeHeight / 4
+        });
+
+        if (cellSize <= 0) {
+            throw new IllegalStateException(
+                    "Nepodařilo se zjistit velikost buňky."
+            );
+        }
+
+        int newWidth = mazeWidth / cellSize;
+        int newHeight = mazeHeight / cellSize;
+
+        BufferedImage reducedMaze = new BufferedImage(
+                newWidth,
+                newHeight,
+                BufferedImage.TYPE_INT_RGB
+        );
+
+        for (int x = 0; x < newWidth; x++) {
+            for (int y = 0; y < newHeight; y++) {
+
+                int whitePixels = 0;
+
+                for (int px = x * cellSize;
+                     px < (x + 1) * cellSize; px++) {
+
+                    for (int py = y * cellSize;
+                         py < (y + 1) * cellSize; py++) {
+
+                        if (isWhiteOrNot(bitmap.getRGB(px, py))) {
+                            whitePixels++;
+                        }
+                    }
+                }
+
+                int totalPixels = cellSize * cellSize;
+
+                if (whitePixels > totalPixels / 2) {
+                    reducedMaze.setRGB(
+                            x, y, Color.WHITE.getRGB()
+                    );
+                } else {
+                    reducedMaze.setRGB(
+                            x, y, Color.BLACK.getRGB()
+                    );
+                }
+            }
+        }
+
+        try {
+            ImageIO.write(
+                    reducedMaze,
+                    "bmp",
+                    new File("Bludiste-zmensene.bmp")
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        System.out.println("Velikost buňky: " + cellSize);
+        System.out.println(
+                "Rozměry zmenšeného bludiště: "
+                        + newWidth + " × " + newHeight
+        );
     }
 
 
