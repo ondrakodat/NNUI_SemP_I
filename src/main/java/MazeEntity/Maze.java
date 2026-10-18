@@ -18,38 +18,38 @@ import java.util.Set;
 import java.util.List;
 
 /*
-* This class represents our Maze which we load from directory.
-* Then we make logical version of our 'physical' (image) version.
-* We make two dimension array of MazeTitle.
-* And also we make copy of our original maze to ensure we got exactly the same one.
-*/
+ * This class represents our Maze which we load from directory.
+ * Then we make logical version of our 'physical' (image) version.
+ * We make two dimension array of MazeTitle.
+ * And also we make copy of our original maze to ensure we got exactly the same one.
+ */
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Maze {
     private BufferedImage bitmap;
-    private MazeTitle [][] logicalMaze;
+    private MazeTitle[][] logicalMaze;
 
-    public void GetMazeFromFile(){
+    public void GetMazeFromFile() {
         InputStream input = getClass().getResourceAsStream("/Bludiste_2.bmp");
-        if(input == null){
+        if (input == null) {
             throw new RuntimeException("File does not exist!");
         }
 
-        try(input){
+        try (input) {
             bitmap = ImageIO.read(input);
-        }catch (IOException e){
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        if(bitmap == null){
+        if (bitmap == null) {
             throw new RuntimeException("File could not be read!");
         }
         printMazeSize();
         setupLogicalMaze();
     }
 
-    public void setupLogicalMaze(){
+    public void setupLogicalMaze() {
         /*
         Added small deviation for white color so not all color != -1 are solid blocks
         color is 4 bajts
@@ -82,51 +82,49 @@ public class Maze {
     private void printMazeSize() {
     }
 
-    public BufferedImage createPhysicalMazeFromLogicalState(){
+    public BufferedImage createPhysicalMazeFromLogicalState() {
         BufferedImage bmtMaze = new BufferedImage(bitmap.getWidth(), bitmap.getHeight(), BufferedImage.TYPE_INT_RGB);
 
         for (int x = 0; x < bitmap.getWidth(); x++) {
             for (int y = 0; y < bitmap.getHeight(); y++) {
                 MazeTitle title = logicalMaze[x][y];
-                if(title.isSolidBlock())
-                    bmtMaze.setRGB(x,y, Color.BLACK.getRGB());
-                else{
-                    bmtMaze.setRGB(x,y,Color.WHITE.getRGB());
+                if (title.isSolidBlock())
+                    bmtMaze.setRGB(x, y, Color.BLACK.getRGB());
+                else {
+                    bmtMaze.setRGB(x, y, Color.WHITE.getRGB());
                 }
             }
         }
         return bmtMaze;
     }
 
-    public boolean areValidEnterStates(int x, int y) throws ArrayIndexOutOfBoundsException{
+    public boolean areValidEnterStates(int x, int y) throws ArrayIndexOutOfBoundsException {
         MazeTitle titleForCheck = logicalMaze[x][y];
         int xCoordinates = titleForCheck.getXCoordinates();
         int yCoordinates = titleForCheck.getYCoordinates();
         int bordersOfX = logicalMaze.length;
         int bordersOfY = logicalMaze[x].length;
-        if(xCoordinates >= bordersOfX || xCoordinates < 0) {
+        if (xCoordinates >= bordersOfX || xCoordinates < 0) {
             System.out.println("Chosen position is not inside of maze with X position");
             return false;
-        }
-        else if(yCoordinates >= bordersOfY || yCoordinates < 0){
+        } else if (yCoordinates >= bordersOfY || yCoordinates < 0) {
             System.out.println("Chosen position is not inside of maze with Y position");
             return false;
-        }
-        else if(titleForCheck.isSolidBlock()){
+        } else if (titleForCheck.isSolidBlock()) {
             System.out.println("Chosen position is solid block. Position x : " + x + ", position y : " + y);
             return false;
-        }else
+        } else
             return true;
     }
 
-    public BufferedImage drawExploredArea(List<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState){
+    public BufferedImage drawExploredArea(List<MazeState> bestWay, Set<MazeState> closedSet, MazeState startState, MazeState destinationState) {
         BufferedImage result = createPhysicalMazeFromLogicalState();
-        for (MazeState state : closedSet){
+        for (MazeState state : closedSet) {
             int x = state.getXPosition();
             int y = state.getYPosition();
             result.setRGB(x, y, Color.BLUE.getRGB());
         }
-        for (MazeState state : bestWay){
+        for (MazeState state : bestWay) {
             int x = state.getXPosition();
             int y = state.getYPosition();
 
@@ -143,7 +141,7 @@ public class Maze {
         return result;
     }
 
-    public int findCellSize(int rowToTest){
+    public int findCellSize(int rowToTest) {
         if (rowToTest < 0 || rowToTest >= bitmap.getHeight()) {
             System.out.println("Neplatný řádek: " + rowToTest);
             return 0;
@@ -160,9 +158,9 @@ public class Maze {
 
         for (int i = 1; i < widthOfMaze; i++) {
             previouisColor = bitmap.getRGB(i - 1, rowToTest);
-            if(isSameColor(bitmap.getRGB(i, rowToTest), previouisColor)){
+            if (isSameColor(bitmap.getRGB(i, rowToTest), previouisColor)) {
                 currentLenght++;
-            }else{
+            } else {
                 lenghtOFDifferentColor.add(currentLenght);
                 System.out.println("Actual lenght of color is : " + currentLenght);
                 swappedColors++;
@@ -172,14 +170,14 @@ public class Maze {
         lenghtOFDifferentColor.add(currentLenght);
         swappedColors++;
 
-        if(lenghtOFDifferentColor.size() < 3){
+        if (lenghtOFDifferentColor.size() < 3) {
             return 0;
         }
 
         lenghtOFDifferentColor.removeFirst();
         lenghtOFDifferentColor.removeLast();
 
-        int [] lenghtsOfDiffColors = lenghtOFDifferentColor.stream().mapToInt(Integer::intValue).toArray();
+        int[] lenghtsOfDiffColors = lenghtOFDifferentColor.stream().mapToInt(Integer::intValue).toArray();
 
         swappedColors = swappedColors - 2;
 
@@ -190,30 +188,56 @@ public class Maze {
         Arrays.stream(lenghtsOfDiffColors).forEach(System.out::println);
 
         int lenghtOfFoundColorLines = lenghtsOfDiffColors.length;
-        int probablyMidlleValue = lenghtOfFoundColorLines/2;
-        int midlleValue = lenghtsOfDiffColors[probablyMidlleValue];
-        int expectedValue = 0;
-        int guessedRightCount = 0;
-        for (int i = 0; i < lenghtOfFoundColorLines; i++) {
-            if(midlleValue == lenghtsOfDiffColors[i]){
-                guessedRightCount++;
+
+        int bestLength = 0;
+        int bestCount = 0;
+
+        for (int i = 0; i < lenghtsOfDiffColors.length; i++) {
+            int currentCount = 0;
+
+            for (int j = 0; j < lenghtsOfDiffColors.length; j++) {
+                if (Math.abs(lenghtsOfDiffColors[i] - lenghtsOfDiffColors[j]) <= 1) {
+                    currentCount++;
+                }
+            }
+
+            if (currentCount > bestCount) {
+                bestCount = currentCount;
+                bestLength = lenghtsOfDiffColors[i];
             }
         }
+        System.out.println("Odhad šířky: " + bestLength);
+        System.out.println("Počet podobných délek: " + bestCount);
+        return bestLength;
 
-//        if(guessedRightCount >= probablyMidlleValue)
-            expectedValue = midlleValue;
-
-
-        return expectedValue;
     }
 
-    public int testFewRows(int [] arrayToTest){
+    public int testFewRows(int[] arrayToTest) {
+
+
+
         int expectedVal = 0;
+        int validrows = 0;
+
         for (int i = 0; i < arrayToTest.length; i++) {
-            expectedVal += findCellSize(arrayToTest[i]);
+            int cellSize = findCellSize(arrayToTest[i]);
+            System.out.println("Řádek " + arrayToTest[i]
+                    + " - odhad: " + cellSize);
+
+            if(cellSize>0){
+                expectedVal += cellSize;
+                validrows++;
+            }
         }
-        int midlleValue = expectedVal / arrayToTest.length;
+        if(validrows == 0){
+            System.out.println("0 platných řádků k výpočtu");
+            return 0;
+        }
+
+        int midlleValue = expectedVal / validrows;
+
         System.out.println("Expected Value of row coridor width is : " + midlleValue);
+
         return midlleValue;
     }
 
@@ -231,10 +255,6 @@ public class Maze {
 
         return firstIsWhite == secondIsWhite;
     }
-
-
-
-
 
 
 }
