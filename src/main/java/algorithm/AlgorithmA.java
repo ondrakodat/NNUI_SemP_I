@@ -20,6 +20,11 @@ import enums.Orientation;
 import java.util.*;
 
 public class AlgorithmA {
+    public interface SearchListener {
+        void onExpanded(MazeState state);
+        void onCompleted(List<MazeState> path, boolean found, int expandedStates);
+    }
+
     private int startCostValue = 0;
     private int totalValue;
     private Maze maze;
@@ -27,13 +32,21 @@ public class AlgorithmA {
     private MazeState actualState;
     private MazeState destinationState;
     private boolean foundDestination = false;
+    private final boolean greedySearch;
+    private final SearchListener searchListener;
 
     PriorityQueue<MazeState> openList = new PriorityQueue<>((MazeState c1, MazeState c2) -> Integer.compare(calculateEstimatedTotalCost(c1), calculateEstimatedTotalCost(c2)));
     Set<MazeState> closedList = new HashSet<>();
     List<MazeState> bestWay = new ArrayList<>();
 
     public AlgorithmA(Maze maze) {
+        this(maze, false, null);
+    }
+
+    public AlgorithmA(Maze maze, boolean greedySearch, SearchListener searchListener) {
         this.maze = maze;
+        this.greedySearch = greedySearch;
+        this.searchListener = searchListener;
     }
 
     public void Start(int startX, int startY, int destinatioX, int destinationY){
@@ -54,6 +67,7 @@ public class AlgorithmA {
                 break;
             }
             closedList.add(actualState);
+            if (searchListener != null) searchListener.onExpanded(actualState);
 
             MazeState leftState = actualState.turnLeft90Degrees();
             if(!openList.contains(leftState) && !closedList.contains(leftState))
@@ -89,6 +103,9 @@ public class AlgorithmA {
         }
         maze.CreateNewLogicalMazeAfterTestingRowsLenght();
         maze.drawExploredArea(bestWay, closedList, startState, destinationState);
+        if (searchListener != null) {
+            searchListener.onCompleted(List.copyOf(bestWay), foundDestination, closedList.size());
+        }
     }
 
     public void vypis(){
@@ -153,7 +170,8 @@ public class AlgorithmA {
     }
 
     public int calculateEstimatedTotalCost(MazeState state){
-        return state.getTotalCost() + calcuteHeuristic(state);
+        int heuristic = calcuteHeuristic(state);
+        return greedySearch ? heuristic : state.getTotalCost() + heuristic;
     }
 
 }

@@ -7,7 +7,7 @@ import java.awt.*;
 
 /*
 * Class representing each tile in 2-dimensional array
-* It can be solid blok which we cant walk thru or empty block where we can continue discovering.
+* It can be solid blok which we cant walk through or empty block where we can continue discovering.
 */
 
 @Getter

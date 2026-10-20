@@ -77,8 +77,6 @@ public class MazeState {
                 this,
                 Orientation.values()[nextValue]
         );
-
-
         return newState;
     }
 
@@ -127,6 +125,7 @@ public class MazeState {
             }
         }
     }
+
     public int moveOnXAxiom(Maze maze){
         if(orientation == Orientation.WEST){
             if(xPosition != 0){

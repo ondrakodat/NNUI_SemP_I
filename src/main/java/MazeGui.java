@@ -20,17 +20,23 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MazeGui extends Application {
     private final Maze maze = new Maze();
     private Canvas canvas;
     private ChoiceBox<MazeOption> imageChoice;
+    private ChoiceBox<String> algorithmChoice;
     private ChoiceBox<String> clickMode;
     private ChoiceBox<Orientation> orientationChoice;
     private Slider speed;
     private Label startLabel, goalLabel, runState, details;
     private Integer startX, startY, goalX, goalY;
     private BufferedImage resultImage;
+    private boolean[][] animatedExplored;
+    private boolean[][] animatedPath;
+    private final AtomicInteger stepDelayMillis = new AtomicInteger(120);
     private Image sourceImage;
     private boolean running;
     private String selectedMazePath = "/Bludiste.bmp";
@@ -91,8 +97,8 @@ public class MazeGui extends Application {
             }
         });
 
-        ChoiceBox<String> algorithmChoice = new ChoiceBox<>();
-        algorithmChoice.getItems().add("A*");
+        algorithmChoice = new ChoiceBox<>();
+        algorithmChoice.getItems().addAll("A*", "Hladový");
         algorithmChoice.setValue("A*");
         algorithmChoice.setMaxWidth(Double.MAX_VALUE);
 
@@ -112,9 +118,16 @@ public class MazeGui extends Application {
 
         speed = new Slider(10, 1000, 120);
         speed.setShowTickLabels(true);
-        speed.setMajorTickUnit(330);
-        speed.setDisable(true);
-        Label speedHint = hint("Animace není dostupná: A* nepředává průběžné stavy.");
+        speed.setShowTickMarks(true);
+        speed.setMajorTickUnit(250);
+        speed.setMinorTickCount(4);
+        speed.setBlockIncrement(10);
+        Label speedHint = hint("Prodleva mezi kroky: 120 ms");
+        speed.valueProperty().addListener((observable, oldValue, newValue) -> {
+            int delay = (int) Math.round(newValue.doubleValue());
+            stepDelayMillis.set(delay);
+            speedHint.setText("Prodleva mezi kroky: " + delay + " ms");
+        });
 
         Button run = button("Spustit hledání", "#2563eb");
         Button pause = button("Pozastavit / pokračovat", "#475569");
@@ -129,7 +142,7 @@ public class MazeGui extends Application {
 
         runState = info("Připraveno · klikněte na start a cíl");
         details = info("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
-        Label limitation = hint("Přerušení, pauza a statistiky nejsou dostupné bez změny algoritmu. Běh probíhá na pozadí, aby GUI zůstalo responzivní.");
+        Label limitation = hint("A* i hladový algoritmus zobrazují prohledávání postupně. Běh probíhá na pozadí, aby GUI zůstalo responzivní.");
 
         VBox box = new VBox(9,
                 title, subtitle, section("BLUDIŠTĚ"), imageChoice,
@@ -169,6 +182,8 @@ public class MazeGui extends Application {
             return;
         }
         resultImage = null;
+        animatedExplored = null;
+        animatedPath = null;
         startX = null;
         startY = null;
         goalX = null;
@@ -240,6 +255,8 @@ public class MazeGui extends Application {
             clickMode.setValue("Vypnuto");
         }
         resultImage = null;
+        animatedExplored = null;
+        animatedPath = null;
         runState.setText("Připraveno");
         drawMaze();
     }
@@ -256,34 +273,96 @@ public class MazeGui extends Application {
         }
         running = true;
         imageChoice.setDisable(true);
+        algorithmChoice.setDisable(true);
         resultImage = null;
+        animatedExplored = new boolean[maze.getLogicalMaze().length][maze.getLogicalMaze()[0].length];
+        animatedPath = new boolean[maze.getLogicalMaze().length][maze.getLogicalMaze()[0].length];
+        final int searchStartX = startX;
+        final int searchStartY = startY;
+        final int searchGoalX = goalX;
+        final int searchGoalY = goalY;
+        final boolean greedy = "Hladový".equals(algorithmChoice.getValue());
+        final long searchStartedAt = System.nanoTime();
         drawMaze();
-        runState.setText("Běží A*…");
+        runState.setText(greedy ? "Běží hladové hledání…" : "Běží A*…");
         details.setText("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
         Thread worker = new Thread(() -> {
             try {
-                new AlgorithmA(maze).Start(startX, startY, goalX, goalY);
+                AlgorithmA.SearchListener listener = new AlgorithmA.SearchListener() {
+                    private int expandedStates;
+
+                    @Override
+                    public void onExpanded(MazeEntity.MazeState state) {
+                        expandedStates++;
+                        updateOnFxThreadAndWait(() -> {
+                            animatedExplored[state.getXPosition()][state.getYPosition()] = true;
+                            runState.setText((greedy ? "Hladové hledání" : "A*")
+                                    + " · prohledáno " + expandedStates + " stavů");
+                            drawMaze();
+                        });
+                        try {
+                            Thread.sleep(stepDelayMillis.get());
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+
+                    @Override
+                    public void onCompleted(List<MazeEntity.MazeState> path, boolean found, int expanded) {
+                        updateOnFxThreadAndWait(() -> {
+                            for (MazeEntity.MazeState state : path) {
+                                animatedPath[state.getXPosition()][state.getYPosition()] = true;
+                            }
+                            runState.setText(found ? "Cesta nalezena" : "Cesta nebyla nalezena");
+                            int cost = path.isEmpty() ? 0 : path.get(path.size() - 1).getTotalCost();
+                            long elapsedMs = (System.nanoTime() - searchStartedAt) / 1_000_000;
+                            details.setText("Cena: " + (found ? cost : "N/A")
+                                    + "   Prohledané: " + expanded
+                                    + "   Kroky cesty: " + (found ? path.size() - 1 : "N/A")
+                                    + "\nČas: " + elapsedMs + " ms   Algoritmus: "
+                                    + (greedy ? "hladový" : "A*"));
+                            drawMaze();
+                        });
+                    }
+                };
+                new AlgorithmA(maze, greedy, listener).Start(searchStartX, searchStartY, searchGoalX, searchGoalY);
                 File result = new File("Bludiste-prosle.bmp");
                 BufferedImage loaded = ImageIO.read(result);
                 Platform.runLater(() -> {
                     resultImage = loaded;
                     running = false;
                     imageChoice.setDisable(false);
-                    runState.setText("Výpočet dokončen. Algoritmus nevrací informaci o nalezení cesty do GUI.");
+                    algorithmChoice.setDisable(false);
                     drawMaze();
                 });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     running = false;
                     imageChoice.setDisable(false);
+                    algorithmChoice.setDisable(false);
                     runState.setText("Chyba výpočtu: " + ex.getMessage());
-                    resultImage = null;
                     drawMaze();
                 });
             }
         }, "maze-search");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private void updateOnFxThreadAndWait(Runnable update) {
+        CountDownLatch completed = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                update.run();
+            } finally {
+                completed.countDown();
+            }
+        });
+        try {
+            completed.await();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void drawMaze() {
@@ -310,6 +389,14 @@ public class MazeGui extends Application {
                 Color color = cell.isSolidBlock()
                         ? Color.web("#111827", .48) : Color.web("#f8fafc", .22);
                 boolean highlighted = false;
+                if (animatedExplored != null && animatedExplored[x][y]) {
+                    color = Color.web("#60a5fa", .75);
+                    highlighted = true;
+                }
+                if (animatedPath != null && animatedPath[x][y]) {
+                    color = Color.web("#ef4444", .82);
+                    highlighted = true;
+                }
                 if (resultImage != null) {
                     int ix = maze.getGridOriginX() + x * maze.getCellSize() + maze.getCellSize() / 2;
                     int iy = maze.getGridOriginY() + y * maze.getCellSize() + maze.getCellSize() / 2;
