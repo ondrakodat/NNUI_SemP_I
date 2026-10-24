@@ -1,0 +1,245 @@
+[] 
+[Title] Dokumentace projektuMaze Solver
+[] Java aplikace pro vizualizaci hledání cesty v obrazovém bludišti
+[] Technický popis architektury, tříd, algoritmů a uživatelského rozhraní
+[] Semestrální práce NNUI1
+[] Verze dokumentace: 1.0  |  Datum: 23. 10. 2026
+[] 
+[] 
+[] Základní údaj
+[] Hodnota
+[] Jazyk
+[] Java 25
+[] Grafické rozhraní
+[] JavaFX Controls 25.0.2
+[] Sestavení
+[] Apache Maven
+[] Hlavní třída
+[] Main
+[] Balíček
+[] SemPraceAI, Maven artifact 1.0-SNAPSHOT
+[] 
+[] 
+[Heading1] 1 Přehled projektu
+[] Maze Solver je desktopová aplikace, která načítá bludiště z rastrového obrázku, převádí jej na mřížku průchozích a neprůchozích polí a hledá cestu mezi uživatelem vybraným startem a cílem. Výpočet lze zobrazit postupně v grafickém rozhraní. Aplikace nabízí A* a hladové vyhledávání; pohybový model zahrnuje orientaci a cenu za otočení.
+[] Dokument popisuje stav zdrojového kódu v projektu při zpracování. Uvedená omezení jsou odvozena přímo z implementace a pomáhají odlišit hotové funkce od ovládacích prvků nebo pomocných metod, které zatím nejsou plně zapojeny.
+[Heading2] Rozsah funkcí
+[ListBullet] Výběr jednoho ze čtyř bludišť zabudovaných jako prostředky aplikace.
+[ListBullet] Výběr startu a cíle kliknutím do zobrazeného bludiště.
+[ListBullet] Převod souřadnic kliknutí do mřížky a odmítnutí neplatných pozic.
+[ListBullet] Hledání A* nebo hladovým algoritmem a animace rozšiřovaných stavů.
+[ListBullet] Zobrazení výsledné cesty, prohledaných oblastí a souhrnných statistik.
+[ListBullet] Analýza obrázků s různými geometriemi buněk a detekce otevřených přechodů.
+[Heading1] 2 Architektura a tok programu
+[] Aplikace je rozdělena do tří vrstev. MazeGui zajišťuje vstupy a vykreslení. Maze zpracovává obrázek a uchovává logickou mřížku. AlgorithmA prochází stavový prostor, přičemž MazeState reprezentuje pozici, orientaci a cenu. Třídy MazeTitle a Orientation poskytují datový model polí a směru pohybu.
+[] Vrstva
+[] Třídy
+[] Odpovědnost
+[] Vstupní bod
+[] Main
+[] Spuštění JavaFX aplikace.
+[] Uživatelské rozhraní
+[] MazeGui
+[] Výběr bludiště a algoritmu, výběr bodů, animace.
+[] Model bludiště
+[] Maze, MazeTitle
+[] Obrázek, geometrie mřížky, průchodnost, vizualizace.
+[] Vyhledávání
+[] AlgorithmA, MazeState
+[] Fronta stavů, heuristika, přechody a rekonstrukce cesty.
+[] Pomocné typy
+[] Orientation, Sort
+[] Výčet směrů a jednoduché řazení celých čísel.
+[] 
+[Heading2] Průběh běhu
+[ListBullet] Main.main předá řízení MazeGui.main a JavaFX spustí MazeGui.start.
+[ListBullet] Maze načte výchozí obrázek z resources a zkonstruuje logickou reprezentaci.
+[ListBullet] Uživatel zvolí obrázek, algoritmus a dvě průchozí souřadnice.
+[ListBullet] MazeGui spustí AlgorithmA v pracovním vlákně. Callbacky výsledku se předávají na JavaFX vlákno.
+[ListBullet] AlgorithmA oznámí dokončení; Maze vytvoří bitmapu s průzkumem a cestou a GUI vykreslí výsledek.
+[Heading1] 3 Struktura projektu
+[] Cesta
+[] Popis
+[] src/main/java/Main.java
+[] Vstupní bod aplikace.
+[] src/main/java/MazeGui.java
+[] JavaFX rozhraní, vstupní události a kreslení.
+[] src/main/java/MazeEntity/Maze.java
+[] Načítání obrázků, odhad geometrie, mřížka a kreslení výsledku.
+[] src/main/java/MazeEntity/MazeState.java
+[] Stav hledání včetně orientace a ceny.
+[] src/main/java/MazeEntity/MazeTitle.java
+[] Jedno pole logické mřížky.
+[] src/main/java/algorithm/AlgorithmA.java
+[] A* i hladové vyhledávání.
+[] src/main/java/algorithm/Sort.java
+[] Jednoduché řazení pole.
+[] src/main/java/enums/Orientation.java
+[] Kardinální směry.
+[] src/main/resources/
+[] Obrázky bludišť a grafické prostředky.
+[] pom.xml
+[] Maven metadata, závislosti a JavaFX plugin.
+[] 
+[Heading2] Vstupní obrázky
+[] V resources jsou Bludiste.bmp, Bludiste_2.bmp, Bludiste_barevne.png a bludiste_nosorozec.png. Výchozí cestou aplikace je /Bludiste.bmp. Soubory Bludiste-output.bmp a Bludiste-prosle.bmp v kořeni projektu jsou výstupy nebo pracovní artefakty; AlgorithmA po hledání zapisuje a GUI následně načítá Bludiste-prosle.bmp z aktuálního pracovního adresáře.
+[Heading1] 4 Datový model
+[Heading2] MazeTitle
+[] Třída představuje jednu buňku v dvourozměrném poli Maze.logicalMaze. Obsahuje souřadnice x/y, příznak isSolidBlock a barvu java.awt.Color. Lombok @Getter/@Setter generuje přístupové metody.
+[] setUpMazeTitle(x, y) — Nastaví souřadnice buňky.
+[] setUpMazeAsSolidBlock() — Označí buňku jako zeď a nastaví černou barvu.
+[] setUpMazeAsNotSolidBlock() — Označí buňku jako průchozí a nastaví bílou barvu.
+[Heading2] MazeState
+[] Vyhledávací stav obsahuje totalCost, xPosition, yPosition, previousState a orientation. Vazba previousState umožňuje po nalezení cíle sestavit cestu zpět. Equals a hashCode identifikují stav podle x, y a orientace, nikoli podle ceny či předchůdce. Třída využívá Lombok pro gettery/settery a konstruktory.
+[] Operace
+[] Význam a cena
+[] Pohyb o jedno pole vpřed
+[] 5 bodů; zachová orientaci.
+[] Otočení vlevo o 90°
+[] 2 body; pozice se nemění.
+[] Otočení vpravo o 90°
+[] 2 body; pozice se nemění.
+[] Otočení o 180°
+[] 3 body; pozice se nemění.
+[] 
+[] turnLeft90Degrees() / turnRight90Degrees() — Vytvoří nový stav se sousední orientací a předchůdcem this.
+[] turnAround180Degrees() — Otočí orientaci o dvě pozice v cyklickém výčtu.
+[] moveForward(Maze) — Posune souřadnici ve směru orientace a přičte cenu pohybu.
+[] moveOnXAxiom(Maze) / moveOnYAxiom(Maze) — Spočítají novou souřadnici na příslušné ose; při překročení hranice vypíší diagnostiku a vyhodí RuntimeException.
+[] equals(Object) / hashCode() — Používají pozici a orientaci, aby stavy šly ukládat do množiny a deduplikovat.
+[Heading2] Orientation
+[] Výčet definuje NORTH, EAST, SOUTH, WEST v tomto pořadí. Pořadí je významné: metody otáčení pracují s ordinal() a cyklickým přechodem mezi hodnotami.
+[Heading1] 5 Třída Maze
+[] Maze je hlavní model a převodní vrstva mezi rastrovým obrázkem a logickou mřížkou. Uchovává BufferedImage bitmap, MazeTitle[][] logicalMaze, cestu zdroje, hranice oblasti, rozměr a počátek buněk. Pro obrázky založené na chodbách ukládá navíc matici otevřených přechodů mezi sousedními buňkami.
+[Heading2] Načítání a sestavení mřížky
+[] GetMazeFromFile() / GetMazeFromFile(path) — Načte obrázek z classpath; druhá varianta aktualizuje resourcePath. Při chybě načtení propaguje chybu jako RuntimeException. Po načtení detekuje hranice a připraví logickou mřížku.
+[] setupLogicalMaze() — Určí velikost buněk, počátek a rozměry mřížky. Podle typu obrázku vzorkuje střed buněk a vytvoří MazeTitle; u barevného/koridorového modelu také sestaví průchody mezi buňkami.
+[] findBordersOfMaze() — Najde komponenty popředí a zvolí největší oblast jako oblast bludiště; překrývající se komponenty zahrne do hranic.
+[] detectCorridorGeometry() — Odhaduje šířku chodby, rozteč stěn a fázi mřížky pro rastr s centry buněk/chodbami.
+[] dominantRunWidth(), dominantWallSpacing(), modalWidth(), findGridPhase() — Pomocné heuristiky pro odhad opakující se šířky světlých/tmavých úseků a zarovnání mřížky.
+[] buildOpenTransitions() / setTransitionPair() / pixelAt() — Vzorkují úseky mezi středy sousedních buněk, rozhodují průchodnost a ukládají ji symetricky pro oba směry.
+[Heading2] Práce s průchodností
+[] areValidEnterStates(x, y) — Ověří meze mřížky a průchodnost; vrací true pouze pro existující buňku, která není označená jako zeď.
+[] isTransitionOpen(x, y, direction) — Ověří přechod mezi buňkou a sousedem v daném směru, pokud existuje matice přechodů; jinak vychází z validace sousední buňky.
+[] isPassableImagePixel(x, y) — Ověří, zda pixel leží v obrázku a splňuje barevné pravidlo průchodnosti.
+[] isColorMaze() / isPassablePixel(color) — Rozpozná barevný zdroj a klasifikuje světlé/průchozí pixely. Pravidlo průchodnosti je oddělené od samotného vykreslení GUI.
+[Heading2] Výstup a pomocné metody
+[] createPhysicalMazeFromLogicalState() — Vytvoří bitmapu reprezentující logickou mřížku; u koridorových/barevných obrázků zachovává geometrii zdroje a kreslí buňky/přechody.
+[] drawCell(image, x, y, color) — Vykreslí buňku na odpovídající místo obrázku.
+[] drawExploredArea(bestWay, closedSet, start, destination) — Vytvoří výstupní obrázek s prohledanými stavy, nalezenou cestou, startem a cílem a zapisuje výsledek do pracovního adresáře.
+[] findCellSize(row) / testFewRows(rows) — Starší nebo doplňkové heuristiky pro odhad velikosti buněk podle vzorkovaných řádků.
+[] CreateNewLogicalMazeAfterTestingRowsLenght() — Znovu načte aktuální resourcePath a rekonstruuje logickou mřížku; metoda se volá po běhu hledání.
+[] CreateReducedMaze() — Obsahuje historický postup pro vytvoření zmenšeného obrázku; implementace je zakomentovaná a metoda je neaktivní.
+[] V kódu zůstává také pomocný record ComponentBounds pro počet pixelů a obdélník komponenty. Při načítání a pohybu se vypisují diagnostické údaje do konzole.
+[Heading1] 6 Vyhledávací algoritmus
+[Heading2] AlgorithmA
+[] AlgorithmA implementuje best-first prohledávání s prioritní frontou openList a množinou closedList. Přepínač greedySearch určuje skóre: A* používá g + h, hladový algoritmus pouze h. Heuristika h je Manhattanova vzdálenost násobená cenou kroku (5). Cíl se testuje podle souřadnic; cílová orientace se nevyžaduje.
+[] AlgorithmA(Maze) — Vytvoří výchozí variantu A* bez listeneru.
+[] AlgorithmA(Maze, greedySearch, listener) — Vytvoří hledání A* nebo hladové hledání a případně připojí callbacky pro animaci.
+[] Start(startX, startY, destinationX, destinationY) — Připraví bludiště, validuje body, vloží počáteční stav orientovaný na NORTH, rozšiřuje stavy otočení a průchodné kroky vpřed, rekonstruuje cestu a vyvolá callback dokončení.
+[] GiveStartAndDestinationPosition(...) — Vytvoří počáteční a cílový MazeState a ověří průchodnost obou souřadnic.
+[] isDestinationReached() — Vrátí true při shodě souřadnic aktuálního a cílového stavu.
+[] prepareEnvironment() — Znovu načte bludiště podle jeho aktuálního resourcePath před hledáním.
+[] isForwardMoveWithinBounds(state) — Zkontroluje hranici mřížky před pokusem o pohyb vpřed.
+[] calcuteHeuristic(state) — Vypočítá (|dx| + |dy|) × 5; název metody obsahuje v kódu překlep.
+[] calculateEstimatedTotalCost(state) — Pro A* vrací cenu stavu plus heuristiku; pro hladový algoritmus samotnou heuristiku.
+[] vypis() — Pomocná konzolová metoda vypíše šířku logické mřížky.
+[Heading3] SearchListener
+[] Vnořené rozhraní předává dvě události: onExpanded(state) při rozšíření stavu a onCompleted(path, found, expandedStates) po skončení hledání. GUI je používá pro animaci a zobrazení výsledných statistik.
+[Heading2] Sort
+[] Sort.sortFromLowest(int[]) řadí pole vzestupně dvojitým cyklem a výměnou prvků. Má kvadratickou časovou složitost O(n²). Třída není používána hlavní cestou vyhledávání; prioritní frontu obsluhuje PriorityQueue.
+[Heading1] 7 Uživatelské rozhraní MazeGui
+[] MazeGui dědí z javafx.application.Application. Obsahuje Canvas pro bludiště a ovládací panel s výběrem zdroje, algoritmu, režimu klikání, orientací, rychlostí animace a tlačítky. Aplikace používá pracovní vlákno maze-search a aktualizuje vizuální prvky přes Platform.runLater; synchronizační pomocná metoda čeká na vykreslení změny před pokračováním animace.
+[] start(Stage) — Načte výchozí bludiště, vytvoří scénu, ovládací panel a canvas a nastaví obsluhu kliknutí i změn velikosti.
+[] buildControls() — Vytvoří všechny ovládací prvky; nabízí A* a Hladový, čtyři obrázky, režimy pro start/cíl a posuvník zpoždění 10–1000 ms.
+[] loadMaze(option) — Načte vybraný obrázek, resetuje hledání a při chybě vrátí výběr na předchozí obrázek.
+[] resetSearch() — Vymaže body, cestu a statistiky; během běhu reset odmítne.
+[] setPoint(px, py) — Převádí souřadnici kliknutí přes měřítko a okraje canvasu na souřadnici buňky; kontroluje pixely, stěny a stav přechodů.
+[] runSearch() — Validuje výběr bodů, zakáže změnu bludiště/algoritmu, spustí AlgorithmA a připraví animované mapy navštívených buněk a cesty.
+[] updateOnFxThreadAndWait(runnable) — Provede GUI změnu na JavaFX vlákně a synchronně vyčká na dokončení callbacku.
+[] drawMaze() / drawCorridorConnector(...) — Vykreslí zdrojový obrázek, zvýrazněné stavy, cestu a případné konektory mezi buňkami.
+[] toFxImage(image) — Převede BufferedImage na JavaFX WritableImage přes pixelový buffer.
+[] section(), info(), hint(), button() — Pomocné tovární metody pro konzistentní vzhled panelu.
+[] showError(title, message) — Zobrazí chybové dialogové okno.
+[] MazeOption(displayName, resourcePath) — Record ukládající popisek a classpath zdroje; toString vrací popisek.
+[] main(args) — Spouští JavaFX pomocí Application.launch.
+[Heading1] 8 Uživatelský postup
+[ListBullet] Spusťte aplikaci Maven příkazem mvn javafx:run.
+[ListBullet] V seznamu vyberte jedno ze čtyř dostupných bludišť.
+[ListBullet] V režimu Nastavit start klikněte na průchozí buňku; režim se přepne na Nastavit cíl.
+[ListBullet] Klikněte na průchozí cílovou buňku. Start a cíl musí být různé pozice.
+[ListBullet] Zvolte A* nebo Hladový a upravte prodlevu animace.
+[ListBullet] Stiskněte Spustit hledání. Stav běhu a statistiky se zobrazí v panelu; cestu vykreslí canvas.
+[ListBullet] Nové hledání resetuje body i výsledek.
+[Heading2] Ovládací prvky a aktuální chování
+[] Prvek
+[] Chování ve zdrojovém kódu
+[] Výběr bludiště
+[] Načte jeden ze čtyř prostředků.
+[] Algoritmus
+[] Volí A* nebo Hladový.
+[] Nastavit start/cíl
+[] Určuje, kterému bodu bude přiřazeno kliknutí.
+[] Posuvník rychlosti
+[] Mění prodlevu mezi rozšířenými stavy.
+[] Spustit hledání
+[] Spustí běh po nastavení dvou různých průchozích bodů.
+[] Nové hledání
+[] Resetuje body a stav hledání, pokud neběží výpočet.
+[] Pozastavit / pokračovat
+[] Obsluha tlačítka je prázdná; pauza není implementována.
+[] Vymazat vizualizaci
+[] Maže resultImage; za běhu je tlačítko inicializováno jako zakázané a jeho obslužná akce nemaže animované masky.
+[] 
+[Heading1] 9 Sestavení a závislosti
+[] Projekt používá Maven. pom.xml definuje groupId com.kodat, artifactId SemPraceAI a verzi 1.0-SNAPSHOT. Kódování zdrojů je UTF-8; maven.compiler.source i target jsou nastaveny na 25. JavaFX Maven plugin 0.0.8 spouští hlavní třídu Main.
+[] Závislost
+[] Verze / účel
+[] org.openjfx:javafx-controls
+[] 25.0.2 – ovládací prvky JavaFX.
+[] org.projectlombok:lombok
+[] 1.18.46, scope provided – generování getterů, setterů a konstruktorů při kompilaci.
+[] 
+[] Požadavky: JDK 25 a Maven s přístupem k závislostem. V kořenovém adresáři projektu spusťte mvn javafx:run. Výstupní obrázek Bludiste-prosle.bmp se ukládá relativně k pracovnímu adresáři procesu; v IDE proto zkontrolujte pracovní adresář konfigurace spuštění.
+[Heading1] 10 Omezení a technická rizika
+[ListBullet] Metoda MazeState.moveOnXAxiom kontroluje východní mez podmínkou xPosition != počet sloupců. Poslední platný sloupec má index počet sloupců − 1, takže tato kontrola může připustit krok mimo mřížku. AlgorithmA má vlastní předběžnou kontrolu, ta však nechrání všechna přímá volání MazeState.
+[ListBullet] PriorityQueue řadí podle vypočítaného skóre, ale při vložení již existujícího stavu se neaktualizuje jeho cena ani předchůdce. ClosedList navíc identifikuje stav pouze pozicí a orientací. Implementace proto nemusí vždy zachovat standardní záruky optimálního A* při nalezení levnější cesty k již známému stavu.
+[ListBullet] Matici opened transitions algoritmus využívá pro obrázky s koridorovou mřížkou a barevná bludiště; u ostatních obrázků se průchodnost odvozuje z logických buněk. Přesnost závisí na odhadu rozměrů, hranic a klasifikaci pixelů.
+[ListBullet] Tlačítko Pozastavit / pokračovat nemá akci. Tlačítko Vymazat vizualizaci maže pouze resultImage a je při běhu zakázané. Nelze tedy uživatelsky zastavit ani pozastavit hledání.
+[ListBullet] GUI po výpočtu čte výstup z pevně pojmenovaného souboru Bludiste-prosle.bmp. Pokud zápis nebo načtení selže, může se výsledek zpracovat jako chyba běhu.
+[ListBullet] Orientace je ve formuláři zakázaná a startovní směr nastavuje algoritmus na NORTH. Cíl se považuje za dosažený bez ohledu na výslednou orientaci.
+[ListBullet] V Main.runConsole je konzolový příklad zakomentovaný; aktivním vstupním bodem je JavaFX rozhraní.
+[Heading2] Doporučené další kroky
+[] Pro zvýšení robustnosti je vhodné sjednotit kontrolu mezí pohybu, implementovat aktualizaci ceny stavu v otevřené frontě (nebo použít mapu nejlepší známé ceny), doplnit skutečné pozastavení/zrušení běhu a předávat výstupní cestu explicitně místo pevného názvu souboru. Vhodné je rovněž doplnit automatizované testy převodu obrázku na mřížku a hledání na malých známých bludištích.
+[Heading1] 11 Shrnutí tříd
+[] Třída / typ
+[] Balíček
+[] Úloha
+[] Main
+[] výchozí
+[] Vstupní bod.
+[] MazeGui
+[] výchozí
+[] JavaFX aplikace a prezentace výsledků.
+[] Maze
+[] MazeEntity
+[] Rastrové a logické bludiště.
+[] MazeState
+[] MazeEntity
+[] Stav hledání včetně ceny a orientace.
+[] MazeTitle
+[] MazeEntity
+[] Buňka bludiště.
+[] AlgorithmA
+[] algorithm
+[] A* a hladové vyhledávání.
+[] Sort
+[] algorithm
+[] Řazení int[] pomocí dvojité smyčky.
+[] Orientation
+[] enums
+[] Čtyři směry.
+[] MazeOption
+[] vnořený v MazeGui
+[] Popisek a cesta k obrázku bludiště.
+[] 

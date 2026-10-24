@@ -22,6 +22,8 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MazeGui extends Application {
     private final Maze maze = new Maze();
@@ -32,13 +34,16 @@ public class MazeGui extends Application {
     private ChoiceBox<Orientation> orientationChoice;
     private Slider speed;
     private Label startLabel, goalLabel, runState, details;
+    private Button runButton, stopButton;
     private Integer startX, startY, goalX, goalY;
     private BufferedImage resultImage;
     private boolean[][] animatedExplored;
     private boolean[][] animatedPath;
     private final AtomicInteger stepDelayMillis = new AtomicInteger(120);
     private Image sourceImage;
-    private boolean running;
+    private volatile boolean running;
+    private volatile AlgorithmA activeSearch;
+    private final AtomicBoolean stopRequested = new AtomicBoolean();
     private String selectedMazePath = "/Bludiste.bmp";
 
     @Override
@@ -129,16 +134,13 @@ public class MazeGui extends Application {
             speedHint.setText("Prodleva mezi kroky: " + delay + " ms");
         });
 
-        Button run = button("Spustit hledání", "#2563eb");
-        Button pause = button("Pozastavit / pokračovat", "#475569");
-        Button stop = button("Vymazat vizualizaci", "#475569");
+        runButton = button("Spustit hledání", "#2563eb");
+        stopButton = button("Zastavit hledání", "#475569");
         Button newSearch = button("Nové hledání", "#0f766e");
-        pause.setDisable(true);
-        stop.setDisable(true);
-        run.setOnAction(e -> runSearch());
+        stopButton.setDisable(true);
+        runButton.setOnAction(e -> runSearch());
         newSearch.setOnAction(e -> resetSearch());
-        stop.setOnAction(e -> { resultImage = null; runState.setText("Výsledek vizualizace vymazán"); drawMaze(); });
-        pause.setOnAction(e -> {});
+        stopButton.setOnAction(e -> stopSearch());
 
         runState = info("Připraveno · klikněte na start a cíl");
         details = info("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
@@ -150,7 +152,7 @@ public class MazeGui extends Application {
                 section("VSTUPNÍ BODY"), clickMode, startLabel, goalLabel,
                 section("ORIENTACE"), orientationChoice, orientationHint,
                 section("RYCHLOST ANIMACE"), speed, speedHint,
-                run, pause, stop, newSearch,
+                runButton, stopButton, newSearch,
                 section("VÝSLEDEK"), runState, details, limitation);
         box.setPadding(new Insets(18));
         box.setPrefWidth(320);
@@ -272,6 +274,9 @@ public class MazeGui extends Application {
             return;
         }
         running = true;
+        stopRequested.set(false);
+        runButton.setDisable(true);
+        stopButton.setDisable(false);
         imageChoice.setDisable(true);
         algorithmChoice.setDisable(true);
         resultImage = null;
@@ -283,6 +288,7 @@ public class MazeGui extends Application {
         final int searchGoalY = goalY;
         final boolean greedy = "Hladový".equals(algorithmChoice.getValue());
         final long searchStartedAt = System.nanoTime();
+        final AtomicReference<AlgorithmA> runSearchRef = new AtomicReference<>();
         drawMaze();
         runState.setText(greedy ? "Běží hladové hledání…" : "Běží A*…");
         details.setText("Cena: N/A   Prohledané: N/A   Vygenerované: N/A\nČas: N/A   Faktor větvení: N/A");
@@ -309,35 +315,67 @@ public class MazeGui extends Application {
 
                     @Override
                     public void onCompleted(List<MazeEntity.MazeState> path, boolean found, int expanded) {
+                        completeSearch(path, found, expanded, -1);
+                    }
+
+                    @Override
+                    public void onCompleted(List<MazeEntity.MazeState> path, boolean found,
+                                            int expanded, int generated) {
+                        completeSearch(path, found, expanded, generated);
+                    }
+
+                    private void completeSearch(List<MazeEntity.MazeState> path, boolean found,
+                                                int expanded, int generated) {
                         updateOnFxThreadAndWait(() -> {
                             for (MazeEntity.MazeState state : path) {
                                 animatedPath[state.getXPosition()][state.getYPosition()] = true;
                             }
-                            runState.setText(found ? "Cesta nalezena" : "Cesta nebyla nalezena");
+                            boolean cancelled = stopRequested.get();
+                            runState.setText(cancelled ? "Hledání zastaveno"
+                                    : found ? "Cesta nalezena" : "Cesta nebyla nalezena");
+                            stopButton.setDisable(true);
                             int cost = path.isEmpty() ? 0 : path.get(path.size() - 1).getTotalCost();
                             long elapsedMs = (System.nanoTime() - searchStartedAt) / 1_000_000;
+                            int depth = found ? path.size() - 1 : -1;
+                            String branching = found && generated >= 0
+                                    ? String.format(java.util.Locale.ROOT, "%.3f", effectiveBranchingFactor(generated, depth))
+                                    : "N/A";
                             details.setText("Cena: " + (found ? cost : "N/A")
                                     + "   Prohledané: " + expanded
-                                    + "   Kroky cesty: " + (found ? path.size() - 1 : "N/A")
+                                    + "   Vygenerované: " + (generated >= 0 ? generated : "N/A")
+                                    + "   Kroky cesty: " + (found ? depth : "N/A")
                                     + "\nČas: " + elapsedMs + " ms   Algoritmus: "
-                                    + (greedy ? "hladový" : "A*"));
+                                    + (greedy ? "hladový" : "A*")
+                                    + "   Efektivní faktor větvení: " + branching);
                             drawMaze();
                         });
                     }
                 };
-                new AlgorithmA(maze, greedy, listener).Start(searchStartX, searchStartY, searchGoalX, searchGoalY);
+                AlgorithmA search = new AlgorithmA(maze, greedy, listener);
+                runSearchRef.set(search);
+                activeSearch = search;
+                if (stopRequested.get()) search.cancel();
+                search.Start(searchStartX, searchStartY, searchGoalX, searchGoalY);
                 File result = new File("Bludiste-prosle.bmp");
                 BufferedImage loaded = ImageIO.read(result);
                 Platform.runLater(() -> {
+                    if (activeSearch != search) return;
                     resultImage = loaded;
                     running = false;
+                    activeSearch = null;
+                    runButton.setDisable(false);
+                    stopButton.setDisable(true);
                     imageChoice.setDisable(false);
                     algorithmChoice.setDisable(false);
                     drawMaze();
                 });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
+                    if (runSearchRef.get() != null && activeSearch != runSearchRef.get()) return;
                     running = false;
+                    activeSearch = null;
+                    runButton.setDisable(false);
+                    stopButton.setDisable(true);
                     imageChoice.setDisable(false);
                     algorithmChoice.setDisable(false);
                     runState.setText("Chyba výpočtu: " + ex.getMessage());
@@ -347,6 +385,34 @@ public class MazeGui extends Application {
         }, "maze-search");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private void stopSearch() {
+        if (!running) return;
+        stopRequested.set(true);
+        AlgorithmA search = activeSearch;
+        stopButton.setDisable(true);
+        runState.setText("Zastavuji hledání…");
+        if (search != null) search.cancel();
+    }
+
+    private static double effectiveBranchingFactor(int generatedStates, int solutionDepth) {
+        if (solutionDepth <= 0) return generatedStates <= 1 ? 0.0 : Double.NaN;
+        if (generatedStates <= solutionDepth + 1) return 1.0;
+        double low = 1.0;
+        double high = Math.max(2.0, generatedStates);
+        for (int iteration = 0; iteration < 100; iteration++) {
+            double middle = (low + high) / 2.0;
+            double total = 1.0;
+            double term = 1.0;
+            for (int level = 1; level <= solutionDepth && total <= generatedStates; level++) {
+                term *= middle;
+                total += term;
+            }
+            if (total > generatedStates) high = middle;
+            else low = middle;
+        }
+        return (low + high) / 2.0;
     }
 
     private void updateOnFxThreadAndWait(Runnable update) {

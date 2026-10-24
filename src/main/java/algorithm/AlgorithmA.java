@@ -18,11 +18,15 @@ import MazeEntity.MazeState;
 import enums.Orientation;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AlgorithmA {
     public interface SearchListener {
         void onExpanded(MazeState state);
         void onCompleted(List<MazeState> path, boolean found, int expandedStates);
+        default void onCompleted(List<MazeState> path, boolean found, int expandedStates, int generatedStates) {
+            onCompleted(path, found, expandedStates);
+        }
     }
 
     private int startCostValue = 0;
@@ -34,9 +38,12 @@ public class AlgorithmA {
     private boolean foundDestination = false;
     private final boolean greedySearch;
     private final SearchListener searchListener;
+    private final AtomicBoolean cancelled = new AtomicBoolean();
+    private boolean hasStarted;
 
-    PriorityQueue<MazeState> openList = new PriorityQueue<>((MazeState c1, MazeState c2) -> Integer.compare(calculateEstimatedTotalCost(c1), calculateEstimatedTotalCost(c2)));
+    PriorityQueue<MazeState> openList = new PriorityQueue<>(this::compareStates);
     Set<MazeState> closedList = new HashSet<>();
+    Map<MazeState, Integer> bestKnownCost = new HashMap<>();
     List<MazeState> bestWay = new ArrayList<>();
 
     public AlgorithmA(Maze maze) {
@@ -50,6 +57,13 @@ public class AlgorithmA {
     }
 
     public void Start(int startX, int startY, int destinatioX, int destinationY){
+        if (hasStarted) cancelled.set(false);
+        hasStarted = true;
+        openList.clear();
+        closedList.clear();
+        bestKnownCost.clear();
+        bestWay.clear();
+        foundDestination = false;
         prepareEnvironment();
         MazeState[] userSelectedStates = GiveStartAndDestinationPosition(startX,startY,destinatioX,destinationY);
         startState = userSelectedStates[0];
@@ -58,37 +72,30 @@ public class AlgorithmA {
 
 
         openList.add(actualState);
+        bestKnownCost.put(actualState, actualState.getTotalCost());
+        int expandedStates = 0;
 
-        while(!openList.isEmpty()){
+        while(!openList.isEmpty() && !cancelled.get()){
             actualState = openList.poll();
+            if (actualState.getTotalCost() != bestKnownCost.getOrDefault(actualState, Integer.MAX_VALUE)) continue;
+            if (closedList.contains(actualState)) continue;
             if(isDestinationReached()){
                 System.out.println("Final destination state reached " + actualState.getTotalCost());
                 foundDestination = true;
                 break;
             }
             closedList.add(actualState);
+            expandedStates++;
             if (searchListener != null) searchListener.onExpanded(actualState);
 
-            MazeState leftState = actualState.turnLeft90Degrees();
-            if(!openList.contains(leftState) && !closedList.contains(leftState))
-                openList.add(leftState);
-
-            MazeState rightState = actualState.turnRight90Degrees();
-            if(!openList.contains(rightState) && !closedList.contains(rightState))
-                openList.add(rightState);
-
-            MazeState aroundState = actualState.turnAround180Degrees();
-            if(!openList.contains(aroundState) && !closedList.contains(aroundState) )
-                openList.add(aroundState);
+            relax(actualState.turnLeft90Degrees());
+            relax(actualState.turnRight90Degrees());
+            relax(actualState.turnAround180Degrees());
 
             if (isForwardMoveWithinBounds(actualState)
                     && maze.isTransitionOpen(actualState.getXPosition(), actualState.getYPosition(), actualState.getOrientation())) {
                 MazeState forwardState = actualState.moveForward(maze);
-                if (maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition())
-                        && !openList.contains(forwardState)
-                        && !closedList.contains(forwardState)) {
-                    openList.add(forwardState);
-                }
+                if (maze.areValidEnterStates(forwardState.getXPosition(), forwardState.getYPosition())) relax(forwardState);
             }
         }
         if (foundDestination) {
@@ -104,8 +111,36 @@ public class AlgorithmA {
         maze.CreateNewLogicalMazeAfterTestingRowsLenght();
         maze.drawExploredArea(bestWay, closedList, startState, destinationState);
         if (searchListener != null) {
-            searchListener.onCompleted(List.copyOf(bestWay), foundDestination, closedList.size());
+            searchListener.onCompleted(List.copyOf(bestWay), foundDestination, expandedStates, bestKnownCost.size());
         }
+    }
+
+    /** Requests a cooperative stop; the search finishes after its current expansion callback. */
+    public void cancel() {
+        cancelled.set(true);
+    }
+
+    public boolean isCancelled() {
+        return cancelled.get();
+    }
+
+    private void relax(MazeState candidate) {
+        int known = bestKnownCost.getOrDefault(candidate, Integer.MAX_VALUE);
+        if (candidate.getTotalCost() >= known) return;
+        bestKnownCost.put(candidate, candidate.getTotalCost());
+        // Reopening is safe for both A* and greedy mode, and handles future
+        // changes to the heuristic without relying on PriorityQueue decrease-key.
+        closedList.remove(candidate);
+        openList.add(candidate); // old entries become stale and are skipped when polled
+    }
+
+    private int compareStates(MazeState left, MazeState right) {
+        int comparison = Integer.compare(calculateEstimatedTotalCost(left), calculateEstimatedTotalCost(right));
+        if (comparison == 0) comparison = Integer.compare(calcuteHeuristic(left), calcuteHeuristic(right));
+        if (comparison == 0) comparison = Integer.compare(left.getYPosition(), right.getYPosition());
+        if (comparison == 0) comparison = Integer.compare(left.getXPosition(), right.getXPosition());
+        if (comparison == 0) comparison = Integer.compare(left.getOrientation().ordinal(), right.getOrientation().ordinal());
+        return comparison;
     }
 
     public void vypis(){

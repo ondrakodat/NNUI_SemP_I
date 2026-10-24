@@ -136,7 +136,7 @@ public class MazeState {
                 throw new RuntimeException("Cant move outside of the maze!");
             }
         }else {
-            if(xPosition != maze.getLogicalMaze().length){
+            if(xPosition < maze.getLogicalMaze().length - 1){
                 return xPosition + 1;
             }else{
                 logBoundaryFailure("X/EAST", maze);
